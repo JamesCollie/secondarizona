@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?><note class="filter" maintenanceversion="1.0" replicaid="88257B650066CF74" version="9.0" xmlns="http://www.lotus.com/dxl">
+<noteinfo noteid="1ca" sequence="48" unid="93247A0DACB20C7F88257394006485CA">
+<created><datetime>20071115T101758,50-08</datetime></created>
+<modified><datetime dst="true">20130508T114258,57-07</datetime></modified>
+<revised><datetime dst="true">20130418T063014,16-07</datetime></revised>
+<lastaccessed><datetime dst="true">20130508T114258,57-07</datetime></lastaccessed>
+<addedtofile><datetime dst="true">20130508T114258,57-07</datetime></addedtofile></noteinfo>
+<updatedby><name>CN=HS Agent/OU=Service/O=HealthSpace</name></updatedby>
+<wassignedby><name>CN=Owl/O=HealthSpace</name></wassignedby>
+<item name="$TITLE" sign="true"><text>Databases</text></item>
+<item name="$PublicAccess"><text>1</text></item>
+<item name="$DesignerVersion"><text>8.5.3</text></item>
+<item name="$Flags"><text>34Qs</text></item>
+<item name="DXLREFRESH"><datetime dst="true">20120427T132622,00-07</datetime></item>
+
+
+<item name="$POID"><datetime dst="true">20130418T063014,16-07</datetime></item></note>

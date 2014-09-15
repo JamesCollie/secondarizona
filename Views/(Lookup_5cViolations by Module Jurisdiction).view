@@ -1,0 +1,65 @@
+<?xml version='1.0' encoding='utf-8'?>
+<note class='view' xmlns='http://www.lotus.com/dxl' version='9.0' maintenanceversion='1.0'
+ replicaid='88257B650066CF74'>
+<noteinfo noteid='606' unid='70A8C71E0E39DC12882579300071FE9A' sequence='12'>
+<created><datetime dst='true'>20111021T134507,46-07</datetime></created>
+<modified><datetime dst='true'>20130508T114302,77-07</datetime></modified>
+<revised><datetime dst='true'>20130418T063018,85-07</datetime></revised>
+<lastaccessed><datetime dst='true'>20130508T114302,77-07</datetime></lastaccessed>
+<addedtofile><datetime dst='true'>20130508T114302,77-07</datetime></addedtofile></noteinfo>
+<updatedby><name>CN=Wol/O=HealthSpace</name><name>CN=HS Agent/OU=Service/O=HealthSpace</name></updatedby>
+<wassignedby><name>CN=Owl/O=HealthSpace</name></wassignedby>
+<item name='$FormatNote' summary='true'>
+<rawitemdata type='4'>
+AQBoPpGhcVyJ7MwNbgDJayWI
+</rawitemdata></item>
+<item name='$FormulaClass' sign='true'><text>1</text></item>
+<item name='$V5ACTIONS' sign='true'>
+<rawitemdata type='1'>
+vRwAAAAAAQABAAAACAAAAAAAAAABAAAJAAAAAHn/bAAJAAAAAAABAAAAAAABAAAAAAAJAAAAAAAD
+AB8AAAAAAAAAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAPz/OgAAAAAAAAAAAAAAAQAAAAAAAAAAAAwAAAAAAAAAAAAA
+AAAAAAAAAAEAAAAAAAAAAAAAAAAAAAC+/yYAAAAFAAAAnQEAAAsAAAAAAAAAQ2F0ZWdvcmlfemUA
+AQBOfL7/KAAAAAUAAACdAQAADgAAAAAAAABfRWRpdCBEb2N1bWVudAIAAgq+/ygAAAAFAAAAnQEA
+AA4AAAAAAAAAU2VuZCBEb2N1X21lbnQDAAMKvv8iAAAABQAAAJ0BAAAIAAAAAAAAAF9Gb3J3YXJk
+BAAECr7/LAAAAAUAAACdAQAAEgAAAAAAAABfTW92ZSBUbyBGb2xkZXIuLi4FAD18vv8uAAAABQAA
+AJ0BAAATAAAAAAAAAF9SZW1vdmUgRnJvbSBGb2xkZXIABgA+fL7/WAAAAAEAAACeARAAEgAAAAAA
+AABBZGQgVmlvbGF0aW9uIENvZGUwAAAAJAACAOgDAAAAAAAAAQANAFZpb2xhdGlvbkNvZGUA7QID
+AAcACgADAAk0UwD2/y4AAAAAAAMAEwAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAQnV0dG9uIC0gTmV3
+</rawitemdata></item>
+<item name='$TITLE' sign='true'><text>(Lookup\Violations by Module Jurisdiction)|ViolationsByModuleJurisdiction</text></item>
+<item name='$Index' sign='true'><text/></item>
+<item name='$Formula' summary='true' sign='true'><formula compiled='true'>
+aAEBAEAAEgBDYXRlZ29yeTEAlukqAId6JQAFAAYATW9kdWxlAQADACAmIAAiAgUADABKdXJpc2Rp
+Y3Rpb24iAgMAAQAyABIAQ2F0ZWdvcnkyAJfpKgCHeiUABQAGAE1vZHVsZQEABwAgJiBCb3RoACIC
+AwACADoAAwAkNTMABQASAENhdGVnb3J5MQCW6SoAh3olAAUAEgBDYXRlZ29yeTIAl+kqAId6JQAf
+AgMABQAsACcABAADAAQACwAJACQ1M0NvZGVEZXNjcmlwdGlvbiRDb25mbGljdAAEAAQAAABgAAUA
+BABGb3JtAQANAFZpb2xhdGlvbkNvZGUACgIFAAcARGVsZXRlZABdAR4BHAIFAAkAJENvbmZsaWN0
+AGgBHgEcAgUACABJbmFjdGl2ZQEAAwBZZXMACwIcAgMABwAqACQACUwxUzRTNVM4UzlTMTBTMTFT
+MTRTMTVTMTZTMTdTMThTMTlT
+</formula></item>
+<item name='$Collation' summary='true'>
+<rawitemdata type='2'>
+LQADAABEiGYHAAADAIBmAAMABACAZgAHAAsAJDUzQ29kZURlc2NyaXB0aW9u
+</rawitemdata></item>
+<item name='$ViewFormat' summary='true' sign='true'>
+<rawitemdata type='5'>
+AQADAAAAi0gAAFZDAwQDAAAA4AAAAAgAAQAACgABAAAAAAAAAAICAAAAVkMBAAQABAAAAAAAUAAB
+AAAKAAAAAAAAAAAAAgIAAABWQwEACwALAAAAAABQAAEAAAoAAAAAAAAAAAACAgAAACQ1M+AAAQBA
+ABIAQ2F0ZWdvcnkxAJbpKgCHeiUABQAGAE1vZHVsZQEAAwAgJiAAIgIFAAwASnVyaXNkaWN0aW9u
+IgIDAAcAFAANAAkxUzJTM1M0UzVTNlMAAQAyABIAQ2F0ZWdvcnkyAJfpKgCHeiUABQAGAE1vZHVs
+ZQEABwAgJiBCb3RoACICAwAHABIADAAJMFJSMVMyUzNTNFMCADoAAwAkNTMABQASAENhdGVnb3J5
+MQCW6SoAh3olAAUAEgBDYXRlZ29yeTIAl+kqAId6JQAfAgMABwAMAAYACTBSUjJTQ29kZUNvZGVE
+ZXNjcmlwdGlvbkRlc2NyaXB0aW9uJgABAAAAAQEACQEAAgoBAQ4KAAAYAK0rAQABAAEAAAAAAAAA
+AABXQwEBAAkAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAD//wAAAAAAAAAAAAAAAAAAV0MBAQAJAAAA
+AAAAAAAAAAAAAAAAAAAABAAAAAAA//8AAAAAAAAAAAAAAAAAAFdDAQEACQAAAAAAAAAAAAAAAAAA
+AAAAAAQAAAAAAP//AAAAAAAAAAAAAAAAAABCAAAAAAABAP///wABAODx/wABAAAAAAAAAAAAAAAA
+AAEA////AAEA////AAAAAQD/AAAAAQCAgIAAAQAAAAAAAAAIAAAAAAABAA==
+</rawitemdata></item>
+<item name='$Comment' sign='true'><text>AGLG-8Y2T9G Violations that are marked as ‘Hide from EHS’ show anyway on inspection using ‘Add Violation’ button unlocked from CN=Berksan Ates/OU=Office/O=HealthSpace 27Sep2012 unlocked from CN=Berksan Ates/OU=Office/O=HealthSpace 27Sep2012 unlocked from CN=Berksan Ates/OU=Office/O=HealthSpace 27Sep2012 unlocked from CN=Berksan Ates/OU=Office/O=HealthSpace 27Sep2012 unlocked from CN=Berksan Ates/OU=Office/O=HealthSpace 27Sep2012 unlocked from CN=Berksan Ates/OU=Office/O=HealthSpace 27Sep201 DXL 28Sep2012 BATS-8Y8KQR</text></item>
+<item name='$DesignerVersion'><text>8.5.3</text></item>
+<item name='$Flags'><text>Y</text></item>
+<item name='$WebFlags'><text>B</text></item>
+<item name='DXLREFRESH'><text>28Sep2012 00:48 BATS-8Y8KQR  old date 21Sep2012 00:18</text></item>
+<item name='DXLRECOMPILE'><text>28Sep2012 00:48 BATS-8Y8KQR import date 28Sep2012 00:48</text></item></note>
+

@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='utf-8'?>
+<note class='form' xmlns='http://www.lotus.com/dxl' version='9.0' maintenanceversion='1.0'
+ replicaid='88257B650066CF74'>
+<noteinfo noteid='496' unid='43152833C8E8666288257640004D6BB4' sequence='4'>
+<created><datetime dst='true'>20090929T070538,44-07</datetime></created>
+<modified><datetime dst='true'>20130508T114300,99-07</datetime></modified>
+<revised><datetime dst='true'>20101105T150101,47-07</datetime></revised>
+<lastaccessed><datetime dst='true'>20130508T114300,99-07</datetime></lastaccessed>
+<addedtofile><datetime dst='true'>20130508T114300,99-07</datetime></addedtofile></noteinfo>
+<updatedby><name>CN=Mike Vandevelde/O=HealthSpace</name><name>CN=Andrew Price/O=HealthSpace</name><name
+>CN=Mike Vandevelde/O=HealthSpace</name><name>CN=Andrew Price/O=HealthSpace</name><name
+>CN=Mike VandeVelde/O=HealthSpace</name><name>CN=Andrew Price/O=HealthSpace</name><name
+>CN=Mike VandeVelde/O=HealthSpace</name><name>CN=Eric Bickle/OU=Office/O=HealthSpace</name><name
+>CN=HealthSpace Development/OU=Office/O=HealthSpace</name><name>CN=Shanon Fischer/OU=Office/O=HealthSpace</name><name
+>CN=James Collie/OU=Office/O=HealthSpace</name><name>CN=Shanon Fischer/OU=Office/O=HealthSpace</name><name
+>CN=HS Agent/OU=Service/O=HealthSpace</name><name>CN=Mike Vogt/OU=Office/O=HealthSpace</name><name
+>CN=HS Agent/OU=Service/O=HealthSpace</name></updatedby>
+<wassignedby><name>CN=HS Agent/OU=Service/O=HealthSpace</name></wassignedby>
+<item name='$TITLE' sign='true'><text>HealthSpace</text></item>
+<item name='$Comment' sign='true'><text/></item>
+<item name='$FrameSet' sign='true'>
+<rawitemdata type='1'>
+7/8YAAIAAwAAAAAAAAAAAAAAAAAAAAAA8P8+AAEAAAABAAAAAAAHAAcAAAAAAAUAAAAAAAUAAAAA
+AAEAAgAAAAAABQAAAAAAAAADAAEAAQC0AAMAAQDx/zgAEwAAAABAAQADAAAAAQAAAAAAAAAAAAQA
+AQAAAAAAAABWaWV3AQD///8AAQAACQEA////APb/JgAAAAAAAwAGAAQAAAAAAAAAAAAAAAAAAAAA
+AAAAAABNZW518f8/AAEAAAAAQAEAAwABAAEAAAAAAAQAAAAHAAEAAAAAAAAAVmlld1ByZXZpZXcB
+AP///wABAAAJAQD///8AP/b/KwAAAAAAAwACAAkAAAAAAAAAAAAAAAAAAAAAAAAAAABNYWlufE1h
+aW4/
+</rawitemdata></item>
+<item name='$DesignerVersion' sign='true'><text>6.5</text></item>
+<item name='$Flags'><text>#4C</text></item></note>
+

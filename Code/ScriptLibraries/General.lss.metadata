@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?><note class="filter" maintenanceversion="1.0" replicaid="88257B650066CF74" version="9.0" xmlns="http://www.lotus.com/dxl">
+<noteinfo noteid="1be" sequence="29" unid="8905808B1216753188256E8C005F55B4">
+<created><datetime dst="true">20040506T102118,60-07</datetime></created>
+<modified><datetime dst="true">20130508T114258,53-07</datetime></modified>
+<revised><datetime>20130118T151923,90-08</datetime></revised>
+<lastaccessed><datetime dst="true">20130508T114258,53-07</datetime></lastaccessed>
+<addedtofile><datetime dst="true">20130508T114258,53-07</datetime></addedtofile></noteinfo>
+<updatedby><name>CN=HS Agent/OU=Service/O=HealthSpace</name></updatedby>
+<wassignedby><name>CN=HS Agent/OU=Service/O=HealthSpace</name></wassignedby>
+<item name="$TITLE" sign="true"><text>General</text></item>
+<item name="$PublicAccess"><text>1</text></item>
+<item name="$DesignerVersion"><text>8.5.3</text></item>
+<item name="$Flags"><text>34Qs</text></item>
+<item name="DXLREFRESH"><text>18Jan2013 00:10 JCOE-94323E  old date 18Jun2012 16:01</text></item>
+<item name="DXLRECOMPILE"><text>18Jan2013 00:11 JCOE-94323E import date 18Jan2013 00:11</text></item>
+
+
+<item name="$Comment"><text>JCOE-942U32 Duplicate MasterSettings documents unlocked from CN=James Collie/OU=Office/O=HealthSpace 17Jan2013 unlocked from CN=James Collie/OU=Office/O=HealthSpace 17Jan2013 unlocked from CN=James Collie/OU=Office/O=HealthSpace 17Jan2013 unlocked from CN=</text></item>
+<item name="$POID"><datetime>20130118T151923,90-08</datetime></item></note>

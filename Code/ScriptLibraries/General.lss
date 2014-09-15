@@ -1,0 +1,595 @@
+'++LotusScript Development Environment:2:5:(Options):0:74
+Option Public
+Option Declare
+
+
+'++LotusScript Development Environment:2:5:(Forward):0:1
+Declare Function HSGetParentByUNID(db As NotesDatabase, doc As NotesDocument, formname As String) As NotesDocument
+Declare Function HSGetHealthOfficeByName(DB As NotesDatabase, OfficeName As String) As NotesDocument
+Declare Sub HSBackupLandDevelopmentSettings(db As NotesDatabase, strName As String)
+Declare Function HSUpdateField(Doc As NotesDocument, strFieldName As String, NewValue As Variant) As Boolean
+Declare Sub HSCopyItemToDocument(Source As NotesDocument, SourceFieldName As String, Dest As NotesDocument, DestFieldName As String)
+Declare Function HSGetSpecificKids( db As NotesDatabase, currdoc As NotesDocument, sFieldName As String, sType As String ) As NotesDocumentCollection
+Declare Sub HSReplaceLandDevelopmentSettings
+Declare Sub HSReplaceGlobalSettings
+Declare Function HSGetDocumentByUNID(DB As NotesDatabase, UNID As String, AllowDeleted As Variant) As NotesDocument
+Declare Sub HSBackupGlobalSettings(db As NotesDatabase, strName As String)
+Declare Function HSGetAllSpecificKids( db As NotesDatabase, currdoc As NotesDocument, sForm As String ) As NotesDocumentCollection
+Declare Function HSDocumentRefresh(Source As NotesUIDocument)
+Declare Function HSGetStaffByName(DB As NotesDatabase, StaffName As String) As NotesDocument
+Declare Sub HSCopyValuesToDocument(Source As NotesDocument, SourceFieldName As String, Dest As NotesDocument, DestFieldName As String)
+Declare Function HSGetProfileDocument(db As NotesDatabase, ProfileName As String) As NotesDocument
+Declare Function HSGetOwnerByID(DB As NotesDatabase, OwnerID As String) As NotesDocument
+Declare Function HSDocumentIsLive(TestDoc As NotesDocument) As Variant
+Declare Function HSGetMostRecentKid( kids As NotesDocumentCollection, sDateField As String ) As NotesDocument
+Declare Function HSUpdateFieldValuesToDocument(SourceDoc As NotesDocument, strSourceFieldNames As String, TargetDoc As NotesDocument, strTargetFieldNames As String) As Boolean
+
+'++LotusScript Development Environment:2:5:(Declarations):0:2
+
+'++LotusScript Development Environment:2:1:HSGetParentByUNID:1:8
+Function HSGetParentByUNID(db As NotesDatabase, doc As NotesDocument, formname As String) As NotesDocument
+	
+	Dim tempdoc As NotesDocument
+	Dim found As Boolean
+	Dim levels As Integer
+	
+	Set HSGetParentByUNID = Nothing
+	found = False
+	levels = 0
+	
+	Set tempdoc = hsgetdocumentbyunid( db, doc.parentdocumentunid, True )	
+	If formname = "" Then 'unspecified form, just give the first parent found
+		found = True
+	Else
+		While Not ((tempdoc Is Nothing) Or found)			
+			If tempdoc.Form(0) = formname Then
+				found = True
+			Elseif tempdoc.UniversalID = doc.UniversalID Then 'Oh No! found a loop!
+				Set tempdoc = Nothing
+			Elseif tempdoc.UniversalID = tempdoc.ParentDocumentUNID Then 'attached to itself, not good
+				Set tempdoc = Nothing
+			Elseif tempdoc.parentdocumentunid = "" Then 'found blank $ref (top of tree) before the requested parent
+				Set tempdoc = Nothing
+			Elseif levels > 99 Then 'something whacky here, more complex loop? (does this make the previous two redundant? vote here, jbc=yes)
+				Set tempdoc = Nothing
+			Else 'try the next one
+				Set tempdoc = hsgetdocumentbyunid( db, tempdoc.parentdocumentunid, True )
+				levels = levels + 1
+			End If			
+		Wend
+	End If
+	
+	If found Then
+		Set HSGetParentByUNID = tempdoc
+	End If
+	
+End Function
+
+'++LotusScript Development Environment:2:1:HSGetHealthOfficeByName:1:8
+Function HSGetHealthOfficeByName(DB As NotesDatabase, OfficeName As String) As NotesDocument
+	
+	Dim LookupView As NotesView
+	
+	If DB Is Nothing Then 
+		Set HSGetHealthOfficeByName = Nothing
+	Else
+		Set LookupView = DB.GetView("HealthOfficeLookup")
+		Set HSGetHealthOfficeByName = LookupView.GetDocumentByKey(OfficeName)
+	End If
+	
+End Function
+
+'++LotusScript Development Environment:2:2:HSBackupLandDevelopmentSettings:1:8
+Sub HSBackupLandDevelopmentSettings(db As NotesDatabase, strName As String)
+	
+	'references to HSBackupLandDevelopmentSettings should be replaced with the single line below, then this function can be deleted
+	HSBackupGlobalSettings db, strName
+	
+End Sub
+
+'++LotusScript Development Environment:2:1:HSUpdateField:3:8
+' This function updates a field on a document only if necessary.  It returns a true or false 
+' value indicating if the field value was changed.
+Function HSUpdateField(Doc As NotesDocument, strFieldName As String, NewValue As Variant) As Boolean
+	
+	Dim tempitem As NotesItem
+	
+	If Doc Is Nothing Then Exit Function
+	If strFieldName = "" Then Exit Function
+	
+	' Check to see if the field exists
+	If Doc.HasItem(strFieldName) Then
+		
+		Set tempitem = Doc.GetFirstItem(strFieldName)
+		
+		' Dates must be handled special
+		If tempitem.Type = 1024 Then
+			If Cstr(tempitem.Values(0)) <> Cstr(NewValue) Then
+				Doc.ReplaceItemValue strFieldName, NewValue
+				HSUpdateField = True
+			End If
+		Else
+			If tempitem.Text <> Cstr(NewValue) Then
+				Doc.ReplaceItemValue strFieldName, NewValue
+				HSUpdateField = True
+			End If
+		End If
+		
+	Else
+		
+		Doc.ReplaceItemValue strFieldName, NewValue
+		HSUpdateField = True
+		
+	End If
+	
+End Function
+
+
+
+'++LotusScript Development Environment:2:2:HSCopyItemToDocument:1:8
+Sub HSCopyItemToDocument(Source As NotesDocument, SourceFieldName As String, Dest As NotesDocument, DestFieldName As String)
+	
+	Dim Item As NotesItem
+	
+	If Not( Source Is Nothing Or Dest Is Nothing) Then 
+		Set Item = Source.GetFirstItem(SourceFieldName)
+		If Not Item Is Nothing Then
+			Call Item.CopyItemToDocument(Dest,DestFieldName)
+		Else
+			Set item = New notesitem ( dest, destfieldname, "" )
+			Call item.copyitemtodocument(dest,destfieldname)
+		End If
+	End If
+	
+End Sub
+
+'++LotusScript Development Environment:2:1:HSGetSpecificKids:1:8
+Function HSGetSpecificKids( db As NotesDatabase, currdoc As NotesDocument, sFieldName As String, sType As String ) As NotesDocumentCollection
+	Dim kids As NotesDocumentCollection
+	Dim kid As NotesDocument
+	Dim gdoc As NotesDocument
+	
+	If currdoc Is Nothing Then Exit Function	
+	Set kids = currdoc.Responses
+	If kids Is Nothing Then Exit Function
+	If kids.Count < 1 Then Exit Function
+	
+	'set an empty collection
+	Set gdoc = Db.GetProfileDocument("MasterSettings" )
+	Set HSGetSpecificKids = gdoc.Responses
+	
+	' should never happen
+	If HSGetSpecificKids.Count > 0 Then
+		Dim tmpdoc As NotesDocument
+		Set kid = HSGetSpecificKids.GetFirstDocument		
+		Do While Not kid Is Nothing
+			Set tmpdoc = HSGetSpecificKids.GetNextDocument( kid ) 
+			Call HSGetSpecificKids.DeleteDocument( kid )'remove doc from the collection	
+			Set kid = tmpdoc
+		Loop		
+	End If
+	
+	Set kid = kids.GetFirstDocument
+	Do While Not kid Is Nothing
+		If kid.Size > 0 Then
+			If Not kid.HasItem( "Deleted" ) Then
+				If kid.HasItem( sFieldName ) Then
+					If kid.GetItemValue( sFieldName )(0) =  sType Then								
+						Call HSGetSpecificKids.AddDocument( kid )									
+					End If
+				End If
+			End If
+		End If			
+		Set kid = kids.GetNextDocument( kid )
+	Loop
+	
+End Function
+
+'++LotusScript Development Environment:2:2:HSReplaceLandDevelopmentSettings:1:8
+Sub HSReplaceLandDevelopmentSettings
+	
+	'references to HSReplaceLandDevelopmentSettings should be replaced with the single line below, then this function can be deleted
+	HSReplaceGlobalSettings
+	
+End Sub
+
+'++LotusScript Development Environment:2:2:HSReplaceGlobalSettings:1:8
+Sub HSReplaceGlobalSettings
+	
+	'this Function works with any settings doc, Global, Master, LandDev, Billing. It figures out what kind of doc it is, and the kind of doc doesnt matter except for messages
+	
+	Dim Session As New NotesSession
+	Dim HealthSpace As NotesDatabase
+	Dim Workspace As New NotesUIWorkspace
+	Dim GlobalSettings As NotesDocument
+	Dim Backups As NotesDocumentCollection
+	Dim Backup As NotesDocument
+	Dim Item As NotesItem
+	Dim Item2 As NotesItem
+	Dim oldinfo As String 'a description of the current doc that is being replaced
+	Dim newinfo As String 'a description of the backup doc that will replace the current one
+	Dim namefixer As NotesName 'to get common name because $UpdatedBy is long
+	Dim strName As String 
+	
+	Set HealthSpace = Session.CurrentDatabase
+	
+	Set Backups = HealthSpace.UnprocessedDocuments
+	If Backups.Count = 1 Then
+		'grab the selected doc, which we will copy from
+		Set Backup = Backups.GetFirstDocument
+		strName = Backup.Form(0)
+		newinfo = Format( Backup.Created, "dd-mmm-yy hh:mm:ss" ) & " by " & Backup.CreatedBy(0) 
+		If Workspace.Prompt( PROMPT_YESNO, "History, from " & newinfo, "Are you sure you want to replace your " &strName & " with this backup?" ) Then
+			'and grab the current doc, which we will replace all the items
+			Set GlobalSettings = HSGetProfileDocument(HealthSpace, strName )
+			'remember some settings from the current doc
+			oldinfo = Format( GlobalSettings.Created, "dd-mmm-yy hh:mm:ss" ) & " by " & GlobalSettings.CreatedBy(0) & ", "  
+			Set Item = GlobalSettings.GetFirstItem( "$UpdatedBy" )
+			If Item Is Nothing Then
+				oldinfo = oldinfo & "no $updated"
+			Else
+				Set namefixer = New NotesName( item.Values(0) )
+				oldinfo = oldinfo & namefixer.Common 
+				If Ubound(Item.Values) > 0 Then
+					Set namefixer = New NotesName( item.Values(Ubound(Item.Values)) )
+					oldinfo = oldinfo & ", " & namefixer.Common 
+				End If
+			End If			
+			
+			'before we do anything, backup what we had, even though it was probably garbage
+			Call HSBackupGlobalSettings(Healthspace, strName ) 'HSBackupGlobalSettings does not save the magic $ fields
+			
+			'now replace all the current values with backup values, with a couple exceptions
+			Forall i In Backup.Items
+				Set Item = i
+				If Left(Item.Name, 1) <> "$" Then 'dont change ANY of the magic $ fields
+					If Item.Name = "ReplaceLog" Then 'and keep both versions of the replace log
+						Set Item2 = GlobalSettings.GetFirstItem( "ReplaceLog" )
+						If item2 Is Nothing Then Set item2 = GlobalSettings.ReplaceItemValue( "ReplaceLog", "" )
+						Item2.AppendToTextList "previous ReplaceLog was:"
+						Forall s In item.Values
+							Item2.AppendToTextList s
+						End Forall
+					Else 'anything else (all the normal fields) gets replaced
+						Set Item2 = GlobalSettings.GetFirstItem( Item.Name )
+						If Not item2 Is Nothing Then item2.Remove
+						If Item.Name = "DocumentID" Then
+							GlobalSettings.DocumentID = Evaluate("@Unique")
+						Else
+							Item.CopyItemToDocument GlobalSettings, Item.Name 
+						End If 
+					End If
+				End If
+			End Forall
+			
+			'and tag on a new line for the current action
+			Set Item = GlobalSettings.GetFirstItem( "ReplaceLog" )
+			If item Is Nothing Then Set item = GlobalSettings.ReplaceItemValue( "ReplaceLog", "" )
+			Item.AppendToTextList Session.CommonUserName & " " & Format( Now, "dd-mmm-yy hh:mm:ss" ) & " using doc from" & newinfo & " to replace " & oldinfo
+			'all done :)
+			GlobalSettings.Save True, True 
+			Workspace.ViewRefresh
+		End If
+	Elseif Backups.Count > 1 Then
+		Msgbox( "Please select only 1 document." )
+	Elseif Backups.Count < 1 Then
+		Msgbox( "Please select a document." )
+	End If
+	
+End Sub
+
+
+'++LotusScript Development Environment:2:1:HSGetDocumentByUNID:1:8
+Function HSGetDocumentByUNID(DB As NotesDatabase, UNID As String, AllowDeleted As Variant) As NotesDocument
+	Dim Doc As NotesDocument
+	
+	Set HSGetDocumentByUNID = Nothing
+	If DB Is Nothing Then Exit Function
+	
+	On Error Resume Next
+	Err = 0
+	Set Doc = DB.GetDocumentByUNID(UNID)
+	If Err <> 0 Then Set Doc = Nothing
+	On Error Goto 0
+	If Not Doc Is Nothing Then
+		If (Doc.IsValid) And (Doc.UniversalID <> "") Then 
+			'Document Isn't a Deletion Stub
+			If Not AllowDeleted Then
+				'Dont return soft deletions
+				If Doc.HasItem("DELETED") Then Set Doc = Nothing
+			End If
+		Else
+			Set Doc = Nothing
+		End If
+	End If
+	
+	Set HSGetDocumentByUNID = Doc
+End Function
+
+
+'++LotusScript Development Environment:2:2:HSBackupGlobalSettings:1:8
+Sub HSBackupGlobalSettings(db As NotesDatabase, strName As String)
+	
+	'this Function works with any and all types of settings doc, Global, Master, LandDev, Billing or anythingnew that might come up.
+	
+	Dim Copy As NotesDocument
+	Dim Item As NotesItem
+	Dim ctr As Integer 
+	Dim session As New NotesSession
+	Dim Settings As NotesDocument 
+	
+	If db Is Nothing Then Exit Sub
+	
+	Set Settings = HSGetProfileDocument(db, strName)
+	If Settings Is Nothing Then Exit Sub
+	
+	Set Copy = db.CreateDocument
+	Copy.Form = strName
+	
+	For ctr = 0 To Ubound(Settings.Items)
+		Set Item = Settings.Items(ctr)
+		If Left(Item.Name, 1) <> "$" And Ucase(Item.Name) <> "DELETED" And Ucase(Item.Name) <> "DELETEDBY" Then
+			If Item.Name = "DocumentID" Then
+				Copy.DocumentID = Evaluate ("@Unique")
+			Else
+				Item.CopyItemToDocument Copy, Item.Name
+			End If 
+		End If
+	Next
+	
+	Copy.CreatedBy = session.CommonUserName	
+	Copy.Save True, True
+	
+End Sub
+
+
+'++LotusScript Development Environment:2:1:HSGetAllSpecificKids:1:8
+Function HSGetAllSpecificKids( db As NotesDatabase, currdoc As NotesDocument, sForm As String ) As NotesDocumentCollection
+	Set HSGetAllSpecificKids = HSGetSpecificKids(db, currdoc, "Form", sForm)	
+End Function
+
+'++LotusScript Development Environment:2:1:HSDocumentRefresh:1:8
+Function HSDocumentRefresh(Source As NotesUIDocument)
+	
+	Dim doc As NotesDocument
+	Dim ws As New NotesUIWorkspace
+	
+	Set doc = Source.Document
+	Evaluate("@PostedCommand([FileCloseWindow])")
+	Set HSDocumentRefresh = ws.EditDocument(True,doc,False)
+	
+End Function
+
+'++LotusScript Development Environment:2:1:HSGetStaffByName:1:8
+Function HSGetStaffByName(DB As NotesDatabase, StaffName As String) As NotesDocument
+	Dim staffLookup As NotesView
+	
+	Set staffLookup = db.Getview("StaffLookup")
+	
+	Set HSGetStaffByName = staffLookup.getDocumentByKey(StaffName)
+End Function
+
+'++LotusScript Development Environment:2:2:HSCopyValuesToDocument:1:8
+Sub HSCopyValuesToDocument(Source As NotesDocument, SourceFieldName As String, Dest As NotesDocument, DestFieldName As String)
+	
+	Dim Item As NotesItem
+	Dim destitem As NotesItem
+	Dim x As Integer
+	
+%REM
+'THIS DOES NOT WORK
+	If Not( Source Is Nothing Or Dest Is Nothing) Then 
+		Set Item = Source.GetFirstItem(SourceFieldName)
+		Set destitem = Dest.ReplaceItemValue(DestFieldName,"")
+		x = 0
+		Forall v In item.Values
+			If x = 0 Then
+				destitem.Values = destitem.Values(0) & v
+			Else
+				destitem.Values = destitem.Values(0) & Chr(13)
+				destitem.Values = destitem.Values(0) & v
+			End If
+			x = x + 1
+		End Forall
+	End If
+%ENDREM
+	'how about this ? (sy Jul 14 2009)
+	If Not( Source Is Nothing Or Dest Is Nothing) Then 
+		Set Item = Source.GetFirstItem(SourceFieldName)
+		If Not item Is Nothing Then
+			Set destitem = Dest.ReplaceItemValue(DestFieldName,"")			
+			Forall v In item.Values				
+				Call destitem.AppendToTextList( v )				
+			End Forall
+		End If
+	End If
+	
+	
+End Sub	
+
+'++LotusScript Development Environment:2:1:HSGetProfileDocument:1:8
+Function HSGetProfileDocument(db As NotesDatabase, ProfileName As String) As NotesDocument
+%REM
+	Function HSGetProfileDocument
+	Description: Safely get the profile document specified by ProfileName in db.
+%END REM
+	Dim profileDocCollection As NotesDocumentCollection
+	
+	If Not db Is Nothing Then
+		Set profileDocCollection = db.Getprofiledoccollection(ProfileName)
+		If profileDocCollection.Count > 0 Then
+			If profileDocCollection.Count = 1 Then 'skip the complicated stuff
+				Set HSGetProfileDocument = profileDocCollection.Getfirstdocument()				
+			Else 'do a cleanup!
+				Dim doc As NotesDocument
+				Dim newest As NotesDocument
+				Set newest = profileDocCollection.Getfirstdocument()
+				Set doc = profileDocCollection.GetNextdocument( newest )
+				While Not doc Is Nothing
+					If doc.Noteid = newest.Noteid Then 'only happens if we started over
+						Set doc = profileDocCollection.GetNextdocument( doc )
+					Elseif doc.Lastmodified > newest.Lastmodified Then ' what we thought was newest is not newest, 
+						newest.Remove True ' so delete it. 
+						Set newest = doc	 ' this is the newest
+						Set doc = profileDocCollection.GetNextdocument( doc ) 'and this is the furthest we have gone so just keep going
+					Else 'nope this is older
+						doc.Remove True 'so delete it
+						Set doc = profileDocCollection.Getfirstdocument() 'hmm, not sure where to go next, so play it safe, start over at the very beginning 
+					End If
+				Wend
+				Set HSGetProfileDocument = newest 'and should also be the only one!
+			End If
+		End If
+	End If
+End Function
+
+'++LotusScript Development Environment:2:1:HSGetOwnerByID:1:8
+Function HSGetOwnerByID(DB As NotesDatabase, OwnerID As String) As NotesDocument
+	Dim LookupView As NotesView
+	Dim OwnerDoc As NotesDocument
+	
+	If DB Is Nothing Then 
+		Set HSGetOwnerByID = Nothing
+	Else	
+		Set LookupView = DB.GetView("(DocumentIDLookup)")
+		Set OwnerDoc = LookupView.GetDocumentByKey(OwnerID)
+		If Not OwnerDoc Is Nothing Then
+			If Lcase(OwnerDoc.Form(0)) <> "business" Then Set OwnerDoc = Nothing
+		End If
+		
+		Set HSGetOwnerByID = OwnerDoc
+	End If
+End Function
+
+
+'++LotusScript Development Environment:2:1:HSDocumentIsLive:1:8
+Function HSDocumentIsLive(TestDoc As NotesDocument) As Variant
+	
+	Dim retval As Variant
+	Dim datetest As Variant
+	
+	retval = True
+	
+	If TestDoc Is Nothing Then retval = False
+	If retval Then retval = TestDoc.IsValid
+	If retval Then
+		If TestDoc.HasItem("Deleted") Then
+			datetest = TestDoc.Deleted(0)
+			If Isdate(datetest) Then retval = False
+		End If
+	End If
+	
+	HSDocumentIsLive = retval
+	
+End Function
+
+'++LotusScript Development Environment:2:1:HSGetMostRecentKid:1:8
+Function HSGetMostRecentKid( kids As NotesDocumentCollection, sDateField As String ) As NotesDocument
+	
+	Set HSGetMostRecentKid = Nothing	
+	If Kids Is Nothing Then Exit Function
+	If kids.Count <1 Then Exit Function
+	
+	Dim kid As NotesDocument
+	Dim lastdtime As NotesDateTime
+	Dim tmpdtime As NotesDateTime
+	Dim lastcreated As NotesDateTime
+	Dim tmpcreated As NotesDateTime
+	Dim tmpItem As NotesItem
+	
+	
+	Set lastdtime = New NotesDateTime( Cdat("1/1/1950") )
+	Call lastdtime.SetAnyTime
+	Set kid = kids.GetFirstDocument
+	
+	Do While Not kid Is Nothing		
+		If kid.HasItem( sDateField ) Then
+			If Not kid.HasItem( "Deleted" ) Then
+				Set tmpitem = kid.GetFirstItem( sDateField )
+				If Isdate( tmpitem.Text ) Then 				
+					Set tmpdtime = New NotesDateTime( kid.GetItemValue( sDateField )(0) )
+					Call tmpdtime.SetAnyTime
+					Set tmpcreated = New NotesDateTime( kid.Created )
+					If tmpdtime.isvaliddate Then 
+						'if multiples on the same date use created
+						If tmpdtime.LSLocalTime = lastdtime.LSLocalTime Then						
+							If tmpcreated.LSLocalTime > lastcreated.LSLocalTime Then
+								Set HSGetMostRecentKid = kid
+								Set lastdtime = New NotesDateTime( tmpdtime.LSLocalTime )		
+								Call lastdtime.SetAnyTime
+								Set lastcreated = New NotesDateTime( tmpcreated.LSLocalTime )
+							End If									
+						'if later than the latest doc date
+						Elseif tmpdtime.LSLocalTime > lastdtime.LSLocalTime Then	
+							Set HSGetMostRecentKid = kid
+							Set lastdtime = New NotesDateTime( tmpdtime.LSLocalTime )		
+							Call lastdtime.SetAnyTime
+							Set lastcreated = New NotesDateTime( tmpcreated.LSLocalTime )
+						End If	
+					End If
+				End If
+			End If
+		End If		
+		Set kid = kids.GetNextDocument( kid )
+	Loop	
+	
+End Function
+
+'++LotusScript Development Environment:2:1:HSUpdateFieldValuesToDocument:5:8
+%REM
+	Function HSUpdateFieldValuesToDocument
+	Description: Copy the item values in SourceDoc to TargetDoc for given field names as comma seperated strings
+%END REM
+Function HSUpdateFieldValuesToDocument(SourceDoc As NotesDocument, strSourceFieldNames As String, TargetDoc As NotesDocument, strTargetFieldNames As String) As Boolean
+	' Copy strSourceFieldNames from  SourceDoc to strTargetFieldNames in TargetDoc
+	Dim arrSourceFieldNames As Variant
+	Dim arrTargetFieldNames As Variant
+	Dim strSourceFieldName As String
+	Dim strTargetFieldName As String
+	Dim i As Integer
+	Dim success As Integer 	
+	
+	If SourceDoc Is Nothing Or TargetDoc Is Nothing Then Exit Function 
+	
+	' Split the names getting from strings to arrays using "," seperator. Example string for arrSourceFieldNames -> "Name,Address,Date"
+	arrSourceFieldNames = Fulltrim(Split(strSourceFieldNames,","))
+	arrTargetFieldNames = Fulltrim(Split(strTargetFieldNames,","))
+	
+	If Ubound(arrSourceFieldNames) <> Ubound(arrTargetFieldNames) Then
+		' Log error
+		Exit Function
+	End If
+	
+	success = 0
+	
+	For i = 0 To Ubound(arrSourceFieldNames)
+		
+		' Check to see if the field exists in source document
+		If SourceDoc.HasItem(arrTargetFieldNames(i)) Then	' If item not found in soruce doc do not bother to copy
+			' Check to see if the field exists in target document
+			Dim tempsourceitem As NotesItem
+			Dim temptargetitem As NotesItem 
+			Set tempsourceitem = SourceDoc.GetFirstItem(arrSourceFieldNames(i))
+			Set temptargetitem = TargetDoc.GetFirstItem(arrTargetFieldNames(i))
+			
+			If TargetDoc.HasItem(arrTargetFieldNames(i)) Then	
+
+					If tempsourceitem.text <> temptargetitem.text Then
+						TargetDoc.ReplaceItemValue arrTargetFieldNames(i), tempsourceitem.Values
+						success = success + 1
+					End If
+			Else				
+				TargetDoc.ReplaceItemValue arrTargetFieldNames(i), tempsourceitem.Values
+				success = success + 1
+				
+			End If
+		End If
+	Next
+
+	If success > 0 Then
+		HSUpdateFieldValuesToDocument = True
+	Else
+		HSUpdateFieldValuesToDocument = False
+	End If
+	
+End Function

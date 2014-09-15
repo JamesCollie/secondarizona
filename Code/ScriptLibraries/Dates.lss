@@ -1,0 +1,157 @@
+'++LotusScript Development Environment:2:5:(Options):0:74
+Option Public
+Option Declare
+
+
+
+'++LotusScript Development Environment:2:5:(Forward):0:1
+Declare Function GetDateInput( Title As String, Prompt As String ) As Variant
+Declare Function MakeSafeDate(varDate As Variant) As Variant
+Declare Function CalculateBillingMonths(dtStart As NotesDateTime, dtEnd As NotesDateTime) As Integer 
+Declare Sub SetNewDate( todoc As NotesDocument, tofield As String, fromdoc As NotesDocument, fromfield As String )
+Declare Sub SetDate( todoc As NotesDocument, tofield As String, vDate As Variant )
+Declare Sub AppendDate( todoc As NotesDocument, sField As String, sDate As String )
+
+'++LotusScript Development Environment:2:5:(Declarations):0:2
+
+'++LotusScript Development Environment:2:1:GetDateInput:1:8
+Function GetDateInput( Title As String, Prompt As String ) As Variant
+	
+	Dim Workspace As New NotesUIWorkspace
+	Dim DateInput As String
+	DateInput = WorkSpace.Prompt( PROMPT_OKCANCELEDIT, Title, Prompt )
+	If DateInput = "" Then
+		Exit Function
+	End If
+	While Not Isdate( DateInput )
+		DateInput = WorkSpace.Prompt( PROMPT_OKCANCELEDIT, Title, "Error: you entered an invalid date. " & Prompt )
+		If DateInput = "" Then
+			Exit Function
+		End If
+	Wend
+	GetDateInput = Datevalue( DateInput )
+	
+End Function
+'++LotusScript Development Environment:2:1:MakeSafeDate:1:8
+Function MakeSafeDate(varDate As Variant) As Variant
+	
+	Dim strDate As String
+	
+	If Isdate(varDate) Then
+		strDate = Format(varDate, "Medium Date") & " 11:59 AM"
+		MakeSafeDate = Cdat(strDate)
+	Else
+		MakeSafeDate = 0
+	End If
+	
+End Function
+'++LotusScript Development Environment:2:1:CalculateBillingMonths:1:8
+Function CalculateBillingMonths(dtStart As NotesDateTime, dtEnd As NotesDateTime) As Integer 
+	
+	Const SECONDS_IN_DAY = 86400		' 60 * 60 * 24
+	Const AVG_DAYS_IN_MONTH = 30.42	' 365 / 12
+	
+	Dim NumDays As Integer 
+	Dim numMonths As Integer 
+	Dim dtLocalStart As NotesDateTime 
+	Dim dtLocalEnd As NotesDateTime 
+	Dim varStart As Variant
+	Dim varEnd As Variant 
+	
+	varStart = dtStart.LSLocalTime 
+	varEnd = dtEnd.LSLocalTime 
+	
+	Set dtLocalStart = New NotesDateTime(varStart)
+	Set dtLocalEnd = New NotesDateTime(varEnd)
+	
+	' Move dates back to month beginnings
+	dtLocalStart.AdjustDay((Day(varStart) * -1) + 1)
+	dtLocalEnd.AdjustDay((Day(varEnd) * -1) + 1)
+	
+	numDays = Round(Abs(dtLocalStart.TimeDifferenceDouble(dtLocalEnd)) / SECONDS_IN_DAY, 0)
+	numMonths = Round(numDays / AVG_DAYS_IN_MONTH, 0)
+	
+	' Add on full months for the partial months at the beginning and the end of the range
+	If numMonths > 0 Then
+		numMonths = numMonths + 1
+	Else
+		numMonths = 1
+	End If
+	
+	CalculateBillingMonths = numMonths
+	
+End Function
+'++LotusScript Development Environment:2:2:SetNewDate:1:8
+Sub SetNewDate( todoc As NotesDocument, tofield As String, fromdoc As NotesDocument, fromfield As String )
+	
+	Dim dtime As NotesDateTime	
+	Dim item As NotesItem
+	
+	Set item = fromdoc.GetFirstItem( fromfield )	
+	If Not item Is Nothing Then
+		If Isdate( item.Text ) Then
+			'this is correct code to strip time zone
+			Set dtime =  item.DateTimeValue			
+			Call dtime.SetAnyTime		
+			Set item = todoc.ReplaceItemValue( tofield, dtime )
+			
+			'this nessesary for field to display in a view
+			item.IsSummary = True
+		End If
+	End If
+	
+End Sub
+'++LotusScript Development Environment:2:2:SetDate:1:8
+Sub SetDate( todoc As NotesDocument, tofield As String, vDate As Variant )
+	
+	Dim dtime As NotesDateTime	
+	Dim item As NotesItem
+	
+	'this is correct code to strip time zone
+	Set dtime = New NotesDateTime( vDate )
+	Call dtime.SetAnyTime		
+	Set item = todoc.ReplaceItemValue( tofield, dtime )
+	
+	'this nessesary for field to display in a view
+	item.IsSummary = True
+	
+End Sub
+'++LotusScript Development Environment:2:2:AppendDate:1:8
+Sub AppendDate( todoc As NotesDocument, sField As String, sDate As String )
+	'appends a date time to a multi value date field
+	Dim dtime() As NotesDateTime
+	Dim i As Integer, x As Integer
+	Dim item As NotesItem
+	Dim bHasDate As Boolean
+	
+	
+	bHasDate = False
+	i = 0
+	If Isdate( sDate ) Then
+		If todoc.HasItem( sField ) Then
+			If Isdate( todoc.GetItemValue( sField )(0) ) Then
+				Set item = todoc.GetFirstItem( sField )	
+				bHasDate = True
+			End If		
+		End If
+		
+		If bHasDate Then
+			'build an array of existing dates		
+			For x = 0 To Ubound( item.Values)
+				Redim Preserve dtime(x) As NotesDateTime 
+				Set dtime(x) = New NotesDateTime( item.Values(x) )
+				Call dtime(x).SetAnyTime
+			Next					
+			Redim Preserve dtime(x) As NotesDateTime 
+			Set dtime(x) = New NotesDateTime( sDate )
+			Call dtime(x).SetAnyTime		
+		Else
+			Redim dtime(i) As NotesDateTime
+			Set dtime(i) = New NotesDateTime( sDate )
+			Call dtime(i).SetAnyTime		
+		End If
+		
+		Call todoc.ReplaceItemValue( sField, dtime )		
+	End If 'isdate sDate
+	
+End Sub

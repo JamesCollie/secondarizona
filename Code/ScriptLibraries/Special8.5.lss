@@ -1,0 +1,66 @@
+'++LotusScript Development Environment:2:5:(Options):0:74
+Option Public
+Option Declare
+
+
+'++LotusScript Development Environment:2:5:(Forward):0:1
+Declare Public Sub HSRefreshView( ws As NotesUIWorkspace, v As NotesUIView, repid As String )
+Declare Private Function NotesVersionNumber As Double
+
+'++LotusScript Development Environment:2:5:(Declarations):0:2
+
+'++LotusScript Development Environment:2:2:HSRefreshView:1:8
+Public Sub HSRefreshView( ws As NotesUIWorkspace, v As NotesUIView, repid As String )
+	
+	If NotesVersionNumber > 8 Then
+' 		The ViewRefreshByDBid line will only compile in Notes 8.5 and newer:
+		If Not v Is Nothing Then
+			Call ws.ViewRefreshByDBid( repid, v.ViewName )
+		Else
+			Call ws.ViewRefreshByDBid( repid )
+		End If
+	Else
+		Call ws.ViewRefresh
+	End If
+	
+End Sub'
+'++LotusScript Development Environment:2:1:NotesVersionNumber:1:8
+Private Function NotesVersionNumber As Double
+	Dim Session As New NotesSession
+	Dim strFullVersion As String
+	Dim strShortVersion As String
+	Dim strChar As String
+	Dim intPos As Integer
+	Dim blnReadNumber As Boolean
+	Dim blnReadPeriod As Boolean
+	Dim blnDoneNumber As Boolean
+	Dim dblVersion As Double
+	
+	strFullVersion = Session.NotesVersion
+	strShortVersion = ""
+	
+	intPos = 1
+	blnReadNumber = False
+	blnDoneNumber = False
+	blnReadPeriod = False
+	While intPos<=Len(strFullVersion) And blnDoneNumber = False
+		strChar = Mid(strFullVersion,intPos,1)
+		If Isnumeric(strChar) Or (strChar = "." And blnReadPeriod = False) Then
+			strShortVersion = strShortVersion + strChar
+			blnReadNumber = True
+			If strChar = "." Then blnReadPeriod = True
+		Else
+			If blnReadNumber Then blnDoneNumber = True
+		End If
+		intPos = intPos +1
+	Wend
+	
+	If strShortVersion = "" Then strShortVersion = "0"
+	dblVersion = Cdbl(strShortVersion)
+	
+	'In some cases, version might be like 851 where it is a beta for 8.5.1
+	If dblVersion>100 Then dblVersion = dblVersion / 100
+	If dblVersion>50 Then dblVersion = dblVersion / 10
+	
+	NotesVersionNumber = dblVersion
+End Function

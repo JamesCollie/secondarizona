@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?><note class="filter" maintenanceversion="1.0" replicaid="88257B650066CF74" version="9.0" xmlns="http://www.lotus.com/dxl">
+<noteinfo noteid="192" sequence="8" unid="60A0CDA7E802EBE788256EE700584CDE">
+<created><datetime dst="true">20040805T090428,46-07</datetime></created>
+<modified><datetime dst="true">20130508T114258,35-07</datetime></modified>
+<revised><datetime dst="true">20130418T063017,58-07</datetime></revised>
+<lastaccessed><datetime dst="true">20130508T114258,35-07</datetime></lastaccessed>
+<addedtofile><datetime dst="true">20130508T114258,35-07</datetime></addedtofile></noteinfo>
+<updatedby><name>CN=Mike VandeVelde/OU=Office/O=HealthSpace</name><name>CN=Micah Wittman/OU=Office/O=HealthSpace</name><name>CN=Eric Bickle/OU=Office/O=HealthSpace</name><name>CN=Shanon Fischer/OU=Office/O=HealthSpace</name><name>CN=Mike Vogt/OU=Office/O=HealthSpace</name><name>CN=Shanon Fischer/OU=Office/O=HealthSpace</name><name>CN=HS Agent/OU=Service/O=HealthSpace</name></updatedby>
+<wassignedby><name>CN=Owl/O=HealthSpace</name></wassignedby>
+<item name="$TITLE" sign="true"><text>Views</text></item>
+<item name="$PublicAccess" sign="true"><text>1</text></item>
+<item name="$Flags"><text>s34Q</text></item>
+
+
+<item name="DXLRECOMPILE"><text>08Jun2012 00:14JCOE-8V2Q9W old date 08Jun2012 00:14</text></item>
+<item name="$POID"><datetime dst="true">20130418T063017,58-07</datetime></item></note>

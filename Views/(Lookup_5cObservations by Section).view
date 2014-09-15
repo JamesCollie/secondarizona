@@ -1,0 +1,52 @@
+<?xml version='1.0' encoding='utf-8'?>
+<note class='view' xmlns='http://www.lotus.com/dxl' version='9.0' maintenanceversion='1.0'
+ replicaid='88257B650066CF74'>
+<noteinfo noteid='2fe' unid='7D1EB51D2736D1D0882574DC007DBB2A' sequence='10'>
+<created><datetime dst='true'>20081008T155319,14-07</datetime></created>
+<modified><datetime dst='true'>20130508T114259,65-07</datetime></modified>
+<revised><datetime dst='true'>20130418T063018,53-07</datetime></revised>
+<lastaccessed><datetime dst='true'>20130508T114259,65-07</datetime></lastaccessed>
+<addedtofile><datetime dst='true'>20130508T114259,65-07</datetime></addedtofile></noteinfo>
+<updatedby><name>CN=Mike Vogt/OU=Office/O=HealthSpace</name><name>CN=HS Agent/OU=Service/O=HealthSpace</name></updatedby>
+<wassignedby><name>CN=Owl/O=HealthSpace</name></wassignedby>
+<item name='$FormulaClass' sign='true'><text>1</text></item>
+<item name='$TITLE' sign='true'><text>(Lookup\Observations by Section)|LookupObsBySec</text></item>
+<item name='$Index' sign='true'><text/></item>
+<item name='$Formula' summary='true' sign='true'><formula compiled='true'>
+AgECABgAAgAkMwUABwBTZWN0aW9uAF4BAwAFADAAKwAEAAIACQALAAkAJDNTdGF0ZUNvZGVPYnNl
+cnZhdGlvbiRDb25mbGljdAAEAAQAAAB8AAUABABGb3JtAQAUAFZpb2xhdGlvbk9ic2VydmF0aW9u
+CgIFAAkASGlkZUluRUhTAAEAAwBZZXMACwIcAgUABwBTZWN0aW9uAAEAAAALAhwCBQAHAERlbGV0
+ZWQAXQEeARwCBQAJACRDb25mbGljdABoAR4BHAIDAAcAOAAyAAlMMVMyUzNTNFM1UzZTN1M4UzlT
+MTBTMTFTMTJTMTNTMTZTMTdTMThTMTlTMjJTMjNT
+</formula></item>
+<item name='$Collation' summary='true'>
+<rawitemdata type='2'>
+HwACAABEiGYHAAACAIBmAAIACQAkM1N0YXRlQ29kZQ==
+</rawitemdata></item>
+<item name='$ViewFormat' summary='true' sign='true'>
+<rawitemdata type='5'>
+AQADAAQACgAAAFZDAwQCAAcAJgAAAFAABQEACgABAAAAAAAAAAICAAAAVkMBAAkACgAAAAAAXAAG
+AAAKAAAAAAAAAAAAAgIAAABWQwAACwALAAAAAAAwAQcAAAoAAAAAAAAAAAACAgAAACQzU2VjdGlv
+biYAAgAYAAIAJDMFAAcAU2VjdGlvbgBeAQMABwAMAAUACTJTM1MAU3RhdGVDb2RlU3RhdGUgQ29k
+ZU9ic2VydmF0aW9uRGVzY3JpcHRpb24mAAEAAAABAQAJAQAACgEBDgoAAAEArSsBAAEAAQAAAAAA
+AAAAAFdDCAEACQAAAAAAAAAAAAAAAAAAAAABAAQAAAAAAP//AAAAAAAAAAAAAAAAAABXQwkBAAkA
+AAAAAAAAAAAAAAAAAAAAAAAEAAAAAAD//wAAAAAAAAAAAAAAAAAAV0MKAQAJAAAAAAAAAAAAAAAA
+AAAAAAAABAAAAAAA//8AAAAAAAAAAAAAAAAAAEIAAAAAAAEA////AAUA////AAEAAAAAAAAAAAAA
+AAAAAQD///8AAQD///8AAAABAAAAAAABAAAAAAABAAAAAAAAAAgAAAAAAAEA
+</rawitemdata></item>
+<item name='$Fonts' sign='true'><textlist><text>5</text><text>38</text><text
+>Arial</text><text>6</text><text>38</text><text>Arial</text><text>7</text><text
+>38</text><text>Arial</text><text>8</text><text>38</text><text>Arial</text><text
+>9</text><text>38</text><text>Arial</text><text>10</text><text>38</text><text
+>Arial</text></textlist></item>
+<item name='$Comment' sign='true'><text/></item>
+<item name='$Flags'><text>Y</text></item>
+<item name='$DesignerVersion'><text>8</text></item>
+<item name='$V5ACTIONS' sign='true'>
+<rawitemdata type='1'>
+vRwRAAAAAQABAAAAAQAAAAAAAAAAAAAACAACAHn/bAABAOzp2AABAAAAAAAJAAAAAAABAOzp2AAD
+ABwAAAAAAAAAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAPz/OgAAAAAAAQAAAAAAAQAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAEAAAAAAAAAAAAAAAAAAAA=
+</rawitemdata></item></note>
+

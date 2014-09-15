@@ -1,0 +1,114 @@
+'++LotusScript Development Environment:2:5:(Options):0:74
+Option Public
+Option Declare
+
+
+'++LotusScript Development Environment:2:5:(Forward):0:1
+Declare Sub ProfileStart
+Declare Sub ProfileStop( EventName As String, ElementName As String )
+Declare Private Function SafeFormatDate( DT As NotesDateTime ) As String
+Declare Private Function FormatServer( s As String ) As String
+Declare Private Function SafeAppendOversize( doc As NotesDocument, fldname As String, newval As String ) As Variant
+Declare Private Sub backup( doc As NotesDocument, who As String )
+
+'++LotusScript Development Environment:2:5:(Declarations):0:10
+Dim ProfileStartTime As NotesDateTime
+
+
+'++LotusScript Development Environment:2:2:ProfileStart:1:8
+Sub ProfileStart
+	Set ProfileStartTime = New NotesDateTime( "" )
+	Call ProfileStartTime.SetNow
+End Sub
+'++LotusScript Development Environment:2:2:ProfileStop:1:8
+Sub ProfileStop( EventName As String, ElementName As String )
+	Dim ProfileEndTime As New NotesDateTime( "" )
+	Call ProfileEndTime.SetNow
+	Dim session As New NotesSession
+	Dim db As NotesDatabase
+	Dim doc As NotesDocument
+	Dim item As NotesItem
+	
+	Set db = Session.CurrentDatabase
+	If db.CurrentAccessLevel >= ACLLEVEL_AUTHOR _
+	Or db.CurrentAccessLevel = ACLLEVEL_DEPOSITOR Then
+		Set doc = db.GetProfileDocument( "Profiling", session.username & Cstr( Day( Today )) )
+		If doc.Form(0) = "" Then 'new doc! create and initialize fields
+newdoc:
+			doc.Form = "Profiling"
+			doc.Owner = Session.UserName
+			doc.Server = FormatServer( db.Server )
+			doc.Event = EventName
+			doc.Type = ElementName
+			doc.Start = SafeFormatDate( ProfileStartTime )
+			doc.Stop = SafeFormatDate( ProfileEndTime )
+		Else 'existing doc, append to existing fields
+			On Error 5472 Goto fixup 'a field was gone, blank out existing, it is useless
+			If SafeAppendOversize( doc, "Server", FormatServer( db.Server )) Or _
+			SafeAppendOversize( doc, "Event", EventName ) Or _
+			SafeAppendOversize( doc, "Type", ElementName ) Or _
+			SafeAppendOversize( doc, "Start", SafeFormatDate( ProfileStartTime ) ) Or _
+			SafeAppendOversize( doc, "Stop", SafeFormatDate( ProfileEndTime ) ) Then 
+				backup doc, Session.UserName
+			End If 'safe appends
+		End If 'form = "" ? newdoc
+		doc.Save True, True 
+	End If
+	Exit Sub
+	
+fixup:
+	Resume newdoc
+End Sub
+'++LotusScript Development Environment:2:1:SafeFormatDate:1:8
+Private Function SafeFormatDate( DT As NotesDateTime ) As String
+	If DT Is Nothing Then
+		SafeFormatDate = "ERROR no date" 
+	Else
+		SafeFormatDate = Format( DT.LSLocalTime, "dd/mmm/yyyy hh:mm:ss" )
+	End If
+End Function
+'++LotusScript Development Environment:2:1:FormatServer:1:8
+Private Function FormatServer( s As String ) As String
+	Dim servername As New NotesName( s )
+	If s = "" Then
+		FormatServer = "Local"
+	Else
+		FormatServer = servername.Common
+	End If
+End Function
+'++LotusScript Development Environment:2:1:SafeAppendOversize:1:8
+Private Function SafeAppendOversize( doc As NotesDocument, fldname As String, newval As String ) As Variant
+	Dim item As NotesItem
+	Set item = doc.GetFirstItem( fldname )
+	If item Is Nothing Then
+		doc.errorfield = fldname
+		SafeAppendOversize = False
+		Error 5472
+	Else
+		item.AppendToTextList newval
+		SafeAppendOversize = item.ValueLength > 15300
+	End If
+End Function
+'++LotusScript Development Environment:2:2:backup:1:8
+Private Sub backup( doc As NotesDocument, who As String )
+	Dim copydoc As NotesDocument
+	Dim db As NotesDatabase
+	Dim unique As Variant
+	
+	unique = Evaluate( "@Unique" )
+	Set db = doc.ParentDatabase
+	Set copydoc = db.GetProfileDocument( "Profiling", "Overflow/" & unique(0) & "/" & who )
+	copydoc.Form = "Profiling"
+	copydoc.Owner = who
+	copydoc.Server = doc.Server
+	doc.Server = ""
+	copydoc.Type = doc.Type
+	doc.Type = ""
+	copydoc.Event = doc.Event
+	doc.Event = ""
+	copydoc.Start = doc.Start
+	doc.Start = ""
+	copydoc.Stop = doc.Stop
+	doc.Stop = ""
+	Call copydoc.Save( True, True )
+End Sub

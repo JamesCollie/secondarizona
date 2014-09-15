@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?><note class="form" maintenanceversion="1.0" replicaid="88257B650066CF74" version="9.0" xmlns="http://www.lotus.com/dxl">
+<noteinfo noteid="52e" sequence="3" unid="B0AEE11FFCC87DBF88256EAD0067F04B">
+<created><datetime dst="true">20040608T115517,23-07</datetime></created>
+<modified><datetime dst="true">20130508T114301,75-07</datetime></modified>
+<revised><datetime dst="true">20130418T063016,74-07</datetime></revised>
+<lastaccessed><datetime dst="true">20130508T114301,75-07</datetime></lastaccessed>
+<addedtofile><datetime dst="true">20130508T114301,75-07</datetime></addedtofile></noteinfo>
+<updatedby><name>CN=Shanon Fischer/OU=Office/O=HealthSpace</name><name>CN=HS Agent/OU=Service/O=HealthSpace</name></updatedby>
+<wassignedby><name>CN=Owl/O=HealthSpace</name></wassignedby>
+<item name="$TITLE"><text>shoveler.jpg</text></item>
+<item name="$Flags"><text>34CiQ</text></item>
+<item name="$ImagesWide"><number>1</number></item>
+<item name="$ImagesHigh"><number>1</number></item>
+<item name="$ImagesColorize"><number>0</number></item>
+
+<item name="$ImageNames"><text>shoveler.jpg</text></item>
+<item name="$DesignerVersion"><text>5</text></item></note>
