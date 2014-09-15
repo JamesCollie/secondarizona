@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?><note class="form" maintenanceversion="1.0" replicaid="88257B650066CF74" version="9.0" xmlns="http://www.lotus.com/dxl">
+<noteinfo noteid="506" sequence="3" unid="7F608E8AD775437488256E4E00117C9B">
+<created><datetime>20040304T191100,11-08</datetime></created>
+<modified><datetime dst="true">20130508T114301,55-07</datetime></modified>
+<revised><datetime dst="true">20070828T143656,34-07</datetime></revised>
+<lastaccessed><datetime dst="true">20130508T114301,55-07</datetime></lastaccessed>
+<addedtofile><datetime dst="true">20130508T114301,55-07</datetime></addedtofile></noteinfo>
+<updatedby><name>CN=Eric Bickle/OU=Office/O=HealthSpace</name><name>CN=HealthSpace Development/OU=Office/O=HealthSpace</name><name>CN=Eric Bickle/OU=Office/O=HealthSpace</name><name>CN=Mike VandeVelde/OU=Office/O=HealthSpace</name><name>CN=HS Agent/OU=Service/O=HealthSpace</name></updatedby>
+<wassignedby><name>CN=HS Agent/OU=Service/O=HealthSpace</name></wassignedby>
+<item name="$Flags"><text>34CiQ</text></item>
+<item name="$ImagesWide" sign="true"><number>1</number></item>
+<item name="$ImagesHigh" sign="true"><number>1</number></item>
+<item name="$ImagesColorize" sign="true"><number>0</number></item>
+
+<item name="$ImageNames" sign="true"><text>view.gif</text></item>
+<item name="$TITLE" sign="true"><text>View</text></item>
+<item name="$Comment"><text/></item>
+<item name="$DesignerVersion"><text>5</text></item></note>

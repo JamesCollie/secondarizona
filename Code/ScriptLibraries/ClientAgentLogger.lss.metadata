@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?><note class="filter" maintenanceversion="1.0" replicaid="88257B650066CF74" version="9.0" xmlns="http://www.lotus.com/dxl">
+<noteinfo noteid="6f6" sequence="5" unid="BBDA88FB2C0C573588257B220003BA5E">
+<created><datetime>20130301T164043,18-08</datetime></created>
+<modified><datetime dst="true">20130508T114303,89-07</datetime></modified>
+<revised><datetime>20130303T074019,05-08</datetime></revised>
+<lastaccessed><datetime dst="true">20130508T114303,89-07</datetime></lastaccessed>
+<addedtofile><datetime dst="true">20130508T114303,89-07</datetime></addedtofile></noteinfo>
+<updatedby><name>CN=HS Agent/OU=Service/O=HealthSpace</name></updatedby>
+<wassignedby><name>CN=HS Agent/OU=Service/O=HealthSpace</name></wassignedby>
+<item name="$TITLE" sign="true"><text>ClientAgentLogger</text></item>
+<item name="$PublicAccess"><text>1</text></item>
+<item name="$DesignerVersion"><text>8.5.3</text></item>
+<item name="$Flags"><text>34Qs</text></item>
+<item name="DXLREFRESH"><text>01Mar2013 16:40 JCOE-94LMTP old date unknown for SCRIPTLIBRARY ClientAgentLogger</text></item>
+
+
+<item name="$Comment"><text>. DXL 01Mar2013 JCOE-94LMTP</text></item>
+<item name="$POID"><datetime>20130303T074019,05-08</datetime></item></note>

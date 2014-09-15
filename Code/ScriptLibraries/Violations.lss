@@ -1,0 +1,3548 @@
+'++LotusScript Development Environment:2:5:(Options):0:74
+Option Public
+Option Declare
+
+Use "Databases"   
+Use "General" 
+Use "Strings"
+
+'this is the EI Root version hey lets call it version 1.0 for a while
+
+'Note: although there are some significant differences between this version and the BC version (which lives in HS Root Elements), or Pueblo or VDH
+'please evaluate your changes and consider updating the other version when appropriate. Especially if its a bug fix, not so important for enhancements.
+
+
+'++LotusScript Development Environment:2:5:(Forward):0:1
+Declare Sub Initialize
+Declare Function CheckRepeatViolation( InspectionDoc As NotesDocument, OriginalValue As String, ViolationCounter As Integer, db As NotesDatabase, InspView As NotesView )
+Declare Sub EntryDocToInsp(Entrydoc As NotesDocument, Inspdoc As NotesDocument, RepeatValues As Variant, db As NotesDatabase, InspView As NotesView)
+Declare Sub EditViolationDialog(ViolationsDB As NotesDatabase, InspView As NotesView)
+Declare Sub RemoveAllObservations( TheCodes As NotesDocumentCollection, InspDoc As NotesDocument )
+Declare Sub RemoveSelectedObservations
+Declare Sub RemoveViolationDialog
+Declare Sub RemoveSectionDialog
+Declare Private Function CheckSizes( Code As Variant, Desc As Variant, Crit As Variant, Obs As Variant, CorrAct As Variant, Corrected As Variant, Rep As Variant, Sec As Variant _
+, Room As Variant, UseRoom As Boolean, Haz As Variant, UseHaz As Boolean, Lgl As Variant, UseLgl As Boolean, msg As Boolean ) As Boolean
+Declare Sub AddViolationDialog( ViolationsDB As NotesDatabase, InspView As NotesView )
+Declare Private Function Tools_CodeExists(Code As String, InspectionDoc As NotesDocument) As Variant
+Declare Sub BuildDisplayFieldHotel(Doc As NotesDocument, WhichOne As String)
+Declare Function CheckSchdInspViolation( InspectionDoc As NotesDocument, OriginalValue As String, ViolationCounter As Integer, db As NotesDatabase, InspView As NotesView )
+Declare Function AddObservationDialog( ViolationsDB As NotesDatabase, cbox As String, _
+theCodes As NotesDocumentCollection, fld As NotesItem ) As Integer
+Declare Sub BuildDisplayFieldVDH(Doc As NotesDocument, WhichOne As String)
+Declare Sub RestoreSection(uidoc As NotesUIDocument, doc As NotesDocument, sSelection As Variant)
+Declare Function GetJurisdiction( db As NotesDatabase, insp As NotesDocument ) As String
+Declare Private Function SumHazardRating(vHazardRatings As Variant) As String
+Declare Sub RemoveItemValue( it As NotesItem, idx As Integer )
+Declare Sub EditViolation(Code As String, DB As NotesDatabase,InspDoc As NotesDocument, InspView As NotesView ,ViolationsDB As NotesDatabase)
+Declare Sub BuildDisplayFieldWaterslide(Doc As NotesDocument, WhichOne As String)
+Declare Sub RemoveSection(Inspdoc As NotesDocument, Code As String)
+Declare Sub RemoveViolation(Inspdoc As NotesDocument, Code As String)
+Declare Private Function GetOptionalField( Inspection As NotesDocument, fldnam As String, InUse As Boolean, direction As String ) As Variant
+Declare Sub AddSection(checkdoc As NotesDocument, inspdoc As NotesDocument, Status As String)
+Declare Sub AddViolation(Code As NotesDocument, DB As NotesDatabase, Done As Variant, InspDoc As NotesDocument, InspView As NotesView )
+Declare Private Function CheckAllViolationSizes(InspDoc As NotesDocument, Max As Integer ) As Variant
+Declare Sub RemoveObservation(strObs As String, doc As NotesDocument, WhichOne As String)
+Declare Private Function xxGetOptionalItem( Inspection As NotesDocument, fldnam As String, control As NotesItem ) As NotesItem
+Declare Function SumAllHazardRatings(InspDoc As NotesDocument) As Integer
+Declare Sub AddActionTaken (UIDoc As NotesUIDocument, intViolArray As Integer)
+Declare Private Function CheckOneItemSize( Item As NotesItem, Max As Integer ) As Variant
+Declare Sub SelectCorrectedDialog(uidoc As NotesUIDocument, direction As String)
+Declare Function AddViolationDialogSection( ViolationsDB As NotesDatabase, HealthSpace As NotesDatabase, UiDoc As NotesUIDocument, InspView As NotesView ) As Variant
+Declare Sub MarkAsRepeat(UIDoc As NotesUIDocument )
+Declare Private Function CheckUseRoom( insp As NotesDocument ) As Boolean
+Declare Sub BuildDisplayFieldSection(Doc As NotesDocument)
+
+'++LotusScript Development Environment:2:5:(Declarations):0:10
+'Error Messages
+Const strErr_MissingFacility = "Could not find the facility. This document may be an orphan."
+Const strErr_NoJurisdiction = |"Permitted Under" blank on the facility. Unable to determine which violations apply.|
+Const strErr_ViolationDBOpen = "Unable to locate violations database. This may be because you are not connected to the network or because your database settings are filled out incorrectly."
+Const strErr_ViolationExist = "One or more of the violation codes you are trying to add already exist."
+Const strErr_ViolationLimit = "The system has reached the maximum amount of violation data for this inspection."
+Const strErr_ViolationSize = "You are approaching the maximum amount of violation data for this inspection."
+Private gsettings As NotesDocument
+Private msettings As NotesDocument
+Private ehsdb As NotesDatabase
+Private ehsmsettings As NotesDocument
+Private ehsgsettings As NotesDocument
+Private session As NotesSession
+
+
+
+
+'++LotusScript Development Environment:2:2:Initialize:1:10
+Sub Initialize
+	
+	Set session = New NotesSession
+	Set ehsdb = session.CurrentDatabase
+	Set gsettings = HSGetProfileDocument(ehsdb, "GlobalSettings")
+	Set msettings = HSGetProfileDocument(ehsdb, "MasterSettings")
+End Sub
+
+'++LotusScript Development Environment:2:1:CheckRepeatViolation:1:8
+Function CheckRepeatViolation( InspectionDoc As NotesDocument, OriginalValue As String, ViolationCounter As Integer, db As NotesDatabase, InspView As NotesView )
+	
+	Dim ws As New NotesUIWorkspace
+	Dim MasterSettings As NotesDocument
+	Dim GlobalSettings As NotesDocument
+	Dim Inspections As NotesViewEntryCollection
+	Dim Inspection As NotesViewEntry
+	Dim CurInspection As NotesDocument
+	Dim ThisDate,LastDate As Variant
+	Dim NumToSearchBack As Integer
+	Dim iCurrentNumberBack As Integer
+	Dim CurViolationCounter As Integer
+	Dim RepeatObservation As NotesDocument
+	Dim resp As Variant 
+	Dim bDone As Variant
+	Dim bPrompt As Variant
+	Dim bRepeat As Boolean
+	Dim strObservations As String
+	
+	Set MasterSettings = HSGetProfileDocument(Db, "MasterSettings")
+	Set GlobalSettings = HSGetProfileDocument(Db, "GlobalSettings")
+	
+	bRepeat = False
+	bPrompt = False
+	
+	ThisDate = InspectionDoc.InspectionDate(0)
+	bDone = False
+	iCurrentNumberBack = 0
+	If Isnumeric(GlobalSettings.NoPreviousInsp(0)) Then 
+		NumToSearchBack = Cint(GlobalSettings.NoPreviousInsp(0))
+	Else
+		NumToSearchBack = 1
+	End If
+	
+	If InspectionDoc.ParentDocumentUNID <> "" Then
+	' Iterate through inspections looking at routine inspections older than current inspection
+		Set Inspections = InspView.GetAllEntriesByKey( InspectionDoc.ParentDocumentUNID,True )
+		Set Inspection = Inspections.GetFirstEntry
+		If Not Inspection Is Nothing Then
+			While (Not Inspection Is Nothing) And bDone = False
+				Set CurInspection = Inspection.Document
+				CurViolationCounter = 0
+				If Lcase(CurInspection.Form(0)) = Lcase(InspectionDoc.Form(0)) Then
+					LastDate = CurInspection.InspectionDate(0)
+					
+				' Only look at older violations that appear on routine inspections
+					If LastDate < ThisDate Then
+						If Arraygetindex(MasterSettings.InspectionRoutineType, CurInspection.Type(0)) >= 0 Then
+							iCurrentNumberBack = iCurrentNumberBack + 1
+							Forall CurCode In CurInspection.ViolCode
+								If CurCode = InspectionDoc.ViolCode( ViolationCounter ) Then
+									strObservations = CurInspection.ViolObservations( CurViolationCounter )
+									If CurInspection.ViolRepeat( CurViolationCounter ) = "Repeat" Then
+										bRepeat = True
+									End If
+									bPrompt = True
+								End If
+								CurViolationCounter = CurViolationCounter + 1
+							End Forall
+						End If
+						If bPrompt Then 'Repeat violation found. Prompt user to record it.
+							Set RepeatObservation = db.CreateDocument
+							RepeatObservation.ViolationCode = InspectionDoc.ViolCode( ViolationCounter )
+							RepeatObservation.Observation = InspectionDoc.ViolObservations( ViolationCounter )
+							RepeatObservation.LastViolationDate = CurInspection.InspectionDate(0)
+							RepeatObservation.OldObservation = strObservations
+							RepeatObservation.Repeat = OriginalValue
+							Call ws.dialogbox("RepeatObservationEntry",True,False,True,False,False,False,"Repeat Observations",RepeatObservation,True,True)
+							If RepeatObservation.Repeat(0) = "Yes" Then
+								CheckRepeatViolation = True
+								bDone = True
+							End If
+						End If
+					End If
+				End If
+				Set Inspection = Inspections.GetNextEntry( Inspection )
+				' Check exit conditions
+				If iCurrentNumberBack = NumToSearchBack Then
+					bDone = True
+				End If
+			Wend
+		End If
+	End If
+End Function
+
+'++LotusScript Development Environment:2:2:EntryDocToInsp:1:8
+Sub EntryDocToInsp(Entrydoc As NotesDocument, Inspdoc As NotesDocument, RepeatValues As Variant, db As NotesDatabase, InspView As NotesView)
+	
+	'copies data from the entry document (which will not be saved) to the multivalued fields on the inspectiion
+	Dim i As Integer
+	Dim iOriginalCount As Integer
+	Dim iObservationCount As Integer
+	Dim vCode As Variant
+	Dim vDescription As Variant
+	Dim vCriticalSet As Variant
+	Dim vObservations As Variant
+	Dim vCorrectiveActions As Variant
+	Dim vRepeat As Variant
+	Dim vCorrected As Variant
+	Dim vRoom As Variant
+	Dim vSection As Variant
+	Dim vHazardRating As Variant
+	Dim vLegalTxt As Variant
+	
+	Dim sRepeat As String
+	Dim UseLglTxt As Boolean
+	Dim UseHazRat As Boolean
+	Dim UseRoom As Boolean
+	Dim UseCorrectiveActions As Boolean
+	
+	On Error Goto ouchie
+	
+	Set ehsdb = InspDoc.Parentdatabase
+	Set ehsmsettings = ehsdb.Getprofiledocument("MasterSettings")
+	Set ehsgsettings = HSGetProfileDocument(ehsdb, "GlobalSettings")
+	
+	UseHazRat = InspDoc.GetItemValue("UseHazard")(0) = "Yes"
+	UseLglTxt =  ehsmsettings.GetItemValue("DisplayViolLegalText")(0) = "Yes"
+	UseRoom = CheckUseRoom( InspDoc )
+	If gsettings.GetItemValue("dspCorrective")(0) = "No" Then
+		UseCorrectiveActions = False
+	Else
+		UseCorrectiveActions = True
+	End If
+	
+	'MKIR-8W9RGV Configurable option to display violation legal text on the printed report only on first inspections, not followups
+	If UseLglTxt Then
+		If InspDoc.GetItemValue("CreatedFromInspID")(0) <> "" Then
+			If ehsgsettings.GetItemValue("UseLegalTextOnFollowup")(0) = "No" Then
+				UseLglTxt = False
+			End If
+		End If
+	End If
+	
+	' Copy existing field values to temporary variables.
+	vCode = InspDoc.ViolCode
+	vDescription = InspDoc.ViolDescription
+	vCriticalSet = InspDoc.ViolCriticalSet
+	vObservations = InspDoc.ViolObservations
+	vCorrectiveActions = InspDoc.ViolCorrectiveActions
+	vRepeat = InspDoc.ViolRepeat
+	vCorrected = InspDoc.ViolCorrectedSet
+	vSection = InspDoc.ViolSection	
+	If UseRoom Then vRoom = InspDoc.ViolRoom
+	If UseHazRat Then vHazardRating= InspDoc.ViolHzrdRating
+	If UseLglTxt Then vLegalTxt = InspDoc.ViolLegalTxt
+	
+	' Figure out the number of entries in the existing fields.
+	If vCode(0) = "" Then
+		iOriginalCount = 0
+	Else
+		iOriginalCount = Ubound(vCode)+1
+	End If
+	
+	' Figure out how many observations the user entered. Note this count is zero based
+	iObservationCount = Ubound(Entrydoc.Observations)
+	
+	' Resize the temporary variables to hold the new values.
+	Redim Preserve vCode(iOriginalCount+iObservationCount) As String
+	Redim Preserve vDescription(iOriginalCount+iObservationCount) As String
+	Redim Preserve vCriticalSet(iOriginalCount+iObservationCount) As String
+	Redim Preserve vObservations(iOriginalCount+iObservationCount) As String
+	Redim Preserve vCorrectiveActions(iOriginalCount+iObservationCount) As String
+	Redim Preserve vRepeat(iOriginalCount+iObservationCount) As String
+	Redim Preserve vCorrected(iOriginalCount+iObservationCount) As String
+	Redim Preserve vSection (iOriginalCount+iObservationCount) As String
+	If UseRoom Then Redim Preserve vRoom(iOriginalCount+iObservationCount) As String
+	If UseHazRat Then Redim Preserve vHazardRating(iOriginalCount+iObservationCount) As String
+	If UseLglTxt Then Redim Preserve vLegalTxt(iOriginalCount+iObservationCount) As String
+	
+	' Replace the fields on the inspection with the temporary variables.	
+	For i = 0 To iObservationCount
+		vCode(iOriginalCount+i) =  Entrydoc.Code(0)
+		vDescription(iOriginalCount+i) =  Entrydoc.Description(0)
+		vCriticalSet(iOriginalCount+i) =  Entrydoc.CriticalSet(0)
+		vObservations(iOriginalCount+i) =  Entrydoc.Observations(i)
+		
+		'need to set a space in the field else when marking as corrected the multiple values are not transfered
+		If UseCorrectiveActions = False Or Entrydoc.CorrectiveActions(i) = "" Then
+			vCorrectiveActions(iOriginalCount+i) = " "
+		Else
+			vCorrectiveActions(iOriginalCount+i) =  Entrydoc.CorrectiveActions(i)
+		End If
+		
+		If Entrydoc.CorrectedSet(i) = "" Then
+			vCorrected(iOriginalCount+i) = " "
+		Else
+			vCorrected(iOriginalCount+i) = Entrydoc.CorrectedSet(i)
+		End If
+		
+		If UseRoom Then
+			If Entrydoc.Room(0) = "" Then
+				vRoom(iOriginalCount+i) = " "
+			Else
+				vRoom(iOriginalCount+i) =  Entrydoc.Room(0)
+			End If
+		End If
+		
+		vSection(iOriginalCount+i) = Entrydoc.Section(0)
+		'		vSection(iOriginalCount+i) = InspDoc.ViolationSection(0) & " - " & InspDoc.ViolationSectionDescription(0) 'section doesnt come from the entry doc, it comes from the inspection
+		If UseHazRat Then 
+			If Entrydoc.SectionHazardRating(0)= "" Then
+				vHazardRating(iOriginalCount+i) = "0"
+			Else
+				vHazardRating(iOriginalCount+i) = Entrydoc.SectionHazardRating(0)
+			End If
+		End If
+		If UseLglTxt Then 
+			If Trim(Entrydoc.LegalText(i)) = "" Then
+				vLegalTxt(iOriginalCount+i) = " "
+			Else
+				vLegalTxt(iOriginalCount+i) = Trim(Entrydoc.LegalText(i))
+			End If
+		End If
+	Next
+	Call InspDoc.ReplaceItemValue("ViolCode",vCode)
+	Call InspDoc.ReplaceItemValue("ViolDescription",vDescription)
+	Call InspDoc.ReplaceItemValue("ViolCriticalSet",vCriticalSet)
+	Call InspDoc.ReplaceItemValue("ViolObservations",vObservations)
+	Call InspDoc.ReplaceItemValue("ViolCorrectiveActions",vCorrectiveActions)
+	Call InspDoc.ReplaceItemValue("ViolCorrectedSet",vCorrected)
+	Call InspDoc.ReplaceItemValue("ViolSection",vSection)
+	If UseRoom Then Call InspDoc.ReplaceItemValue("ViolRoom",vRoom)
+	If UseHazRat Then
+		Call InspDoc.ReplaceItemValue("ViolHzrdRating",vHazardRating)
+		InspDoc.ReplaceItemValue "TotHazardRating", SumAllHazardRatings(InspDoc)
+	End If
+	If UseLglTxt Then Call InspDoc.ReplaceItemValue("ViolLegalTxt",vLegalTxt)
+	
+	' Translate the repeat fields.
+	For i = 0 To iObservationCount
+		If Isarray(RepeatValues) Then
+			If Ubound(RepeatValues) = iObservationCount Then
+				If Instr(RepeatValues(i), "Repeat") > 0 Then
+					sRepeat = "Yes"
+				Else
+					sRepeat = "No"
+				End If
+			Else
+				sRepeat = ""
+			End If 'ubound = count
+		Else 'isarray
+			sRepeat = ""
+		End If
+		If CheckRepeatViolation(InspDoc,sRepeat,iOriginalCount+i,db, InspView) Then
+			vRepeat(iOriginalCount+i) =  "Repeat"
+		Else
+			vRepeat(iOriginalCount+i) =  ""
+		End If
+		Call CheckSchdInspViolation(InspDoc,sRepeat,iOriginalCount+i,db, InspView)
+	Next
+	
+	Call InspDoc.ReplaceItemValue("ViolRepeat",vRepeat)	
+	
+gnite:
+	Exit Sub
+	
+ouchie:
+	Msgbox "there was a problem in EntryDocToInspection, at line" & Erl & " (" & Error & ")"
+	Resume gnite
+	
+End Sub
+
+'++LotusScript Development Environment:2:2:EditViolationDialog:1:8
+Sub EditViolationDialog(ViolationsDB As NotesDatabase, InspView As NotesView)
+	Dim session As New NotesSession
+	Dim db As NotesDatabase
+	Dim workspace As New NotesUIWorkspace
+	Dim uidoc As NotesUIDocument
+	Dim doc As NotesDocument
+	Dim i As Integer
+	Dim Violations List As String
+	Dim iViolationCount As Integer
+	Dim SelectionArray As Variant
+	Dim LookupArray As Variant
+	Dim sSelection As String	
+	Dim vViolCode As Variant
+	Dim vViolDesc As Variant
+	Dim vViolSect As Variant 
+	
+	Set DB = Session.CurrentDatabase
+	Set uidoc = workspace.CurrentDocument
+	Set doc = uidoc.document
+	vViolCode = doc.ViolCode
+	vViolDesc = doc.ViolDescription
+	vViolSect = doc.ViolSection
+	
+	'Check if there are any violations to edit
+	If vViolCode(0) = "" Then
+		Messagebox "There are no violations to edit.", 48, "Error"
+		Exit Sub
+	End If
+	
+	'Create unqiue list of violations
+	For i = Lbound(vViolCode) To Ubound(vViolCode)
+		If doc.Form(0) = "FoodRiskInspection" Then
+			Violations(vViolCode(i)) = "(Sect " & vViolSect(i) & ") " & vViolDesc(i)
+		Else
+			Violations(vViolCode(i)) = vViolDesc(i)
+		End If
+	Next
+	
+	'Count 'unique' violations
+	iViolationCount = 0
+	Forall s In Violations
+		iViolationCount = iViolationCount+1
+	End Forall
+	
+	Redim SelectionArray(iViolationCount-1) As String
+	Redim LookupArray(iViolationCount-1,1) As String
+	i = 0
+	Forall s In Violations
+		SelectionArray(i) = Listtag(s) + " - " + s
+		LookupArray(i,0) = SelectionArray(i)
+		LookupArray(i,1) = Listtag(s)
+		i = i + 1
+	End Forall
+	
+	sSelection = Workspace.Prompt( PROMPT_OKCANCELLIST, "Edit Violation", "Select the violation you want to edit.", "", SelectionArray)
+	If sSelection <> "" Then
+		For i = Lbound(LookupArray) To Ubound(LookupArray)
+			If LookupArray(i,0) = sSelection Then
+				Call EditViolation(LookupArray(i,1),DB,doc,InspView,ViolationsDB)
+			End If
+		Next
+	End If
+End Sub
+
+'++LotusScript Development Environment:2:2:RemoveAllObservations:1:8
+Sub RemoveAllObservations( TheCodes As NotesDocumentCollection, InspDoc As NotesDocument )
+	'removes observations from the inspection that match the code and observation of one of TheCodes
+	
+	'jbc 18Feb2010 this function does not handle LegalText or HazardRating. I did not experience crashes here during my testing. Perhaps the function is not used?
+	
+	Dim Code As NotesItem
+	Dim Description As NotesItem
+	Dim CriticalSet As NotesItem
+	Dim Observations As NotesItem
+	Dim CorrectiveActions As NotesItem
+	Dim Repeat As NotesItem
+	Dim Corrected As NotesItem
+	Dim Room As NotesItem
+	Dim Section As NotesItem
+	Dim CodeDoc As NotesDocument
+	Dim i As Integer
+	Dim ws As New NotesUIWorkspace
+	Dim msg As String
+	
+	Set Code = InspDoc.GetFirstItem( "ViolCode" )
+	If Code Is Nothing Then 
+		Set Code = InspDoc.ReplaceItemValue( "ViolCode", "" )
+		Set Description = InspDoc.ReplaceItemValue( "ViolDescription", "" )
+		Set CriticalSet = InspDoc.ReplaceItemValue( "ViolCriticalSet", "" )
+		Set Observations = InspDoc.ReplaceItemValue( "ViolObservations", "" )
+		Set CorrectiveActions = InspDoc.ReplaceItemValue( "ViolCorrectiveActions", "" )
+		Set Repeat = InspDoc.ReplaceItemValue( "ViolRepeat", "" )
+		Set Corrected = InspDoc.ReplaceItemValue( "ViolCorrectedSet", "" )
+		Set Room = InspDoc.ReplaceItemValue( "ViolRoom", "" )
+		Set Section = InspDoc.ReplaceItemValue( "ViolSection", "" )
+	Else
+		Set Description = InspDoc.GetFirstItem( "ViolDescription" )
+		Set CriticalSet = InspDoc.GetFirstItem( "ViolCriticalSet" )
+		Set Observations = InspDoc.GetFirstItem( "ViolObservations" )
+		Set CorrectiveActions = InspDoc.GetFirstItem( "ViolCorrectiveActions" )
+		Set Repeat = InspDoc.GetFirstItem( "ViolRepeat" )
+		Set Corrected = InspDoc.GetFirstItem( "ViolCorrectedSet" )
+		Set Room = InspDoc.GetFirstItem( "ViolRoom" )
+		If Room Is Nothing Then 'room has special treatment in BuildDisplayField
+			Set Room = InspDoc.ReplaceItemValue( "ViolRoom", "" )
+		End If
+		Set Section = InspDoc.GetFirstItem( "ViolSection" )
+	End If			
+	
+	Set CodeDoc = TheCodes.GetFirstDocument
+	While Not CodeDoc Is Nothing
+		i = 0
+		While i <= Ubound (Code.Values )
+			If Trim(Code.Values(i)) = Trim(CodeDoc.Code(0)) _
+			And Trim(Observations.Values(i)) = Trim(CodeDoc.Observation(0)) Then
+				RemoveItemValue Code, i
+				RemoveItemValue Description, i
+				RemoveItemValue CriticalSet, i
+				RemoveItemValue Observations, i
+				RemoveItemValue CorrectiveActions, i
+				RemoveItemValue Repeat, i
+				RemoveItemValue Corrected, i
+				RemoveItemValue Room, i
+				RemoveItemValue Section, i
+			Else
+				i = i + 1
+			End If
+		Wend
+		Set CodeDoc = TheCodes.GetNextDocument( CodeDoc )
+	Wend
+	
+End Sub
+
+'++LotusScript Development Environment:2:2:RemoveSelectedObservations:1:8
+Sub RemoveSelectedObservations
+	Msgbox "Feature not implemented"
+End Sub
+
+'++LotusScript Development Environment:2:2:RemoveViolationDialog:1:8
+Sub RemoveViolationDialog
+	Dim workspace As New NotesUIWorkspace
+	Dim uidoc As NotesUIDocument
+	Dim doc As NotesDocument
+	Dim i As Integer
+	Dim Violations List As String
+	Dim iViolationCount As Integer
+	Dim SelectionArray As Variant
+	Dim LookupArray As Variant
+	Dim sSelection As String	
+	Dim vViolCode As Variant
+	Dim vViolDesc As Variant
+	Dim vViolSect As Variant
+	
+	Set uidoc = workspace.CurrentDocument
+	Set doc = uidoc.document
+	vViolCode = doc.ViolCode
+	vViolDesc = doc.ViolDescription
+	vViolSect = doc.ViolSection
+	
+	'Check if there are any violations to remove
+	If vViolCode(0) = "" Then
+		Messagebox "There are no violations to remove.", 48, "Error"
+		Exit Sub
+	End If
+	
+	'Create unqiue list of violations
+	For i = Lbound(vViolCode) To Ubound(vViolCode)
+		Violations(vViolCode(i)) = vViolDesc(i) & " #" & vViolSect(i)
+	Next
+	
+	'Count 'unique' violations
+	iViolationCount = 0
+	Forall s In Violations
+		iViolationCount = iViolationCount+1
+	End Forall
+	
+	Redim SelectionArray(iViolationCount-1) As String
+	Redim LookupArray(iViolationCount-1,1) As String
+	i = 0
+	Forall s In Violations
+		SelectionArray(i) = Listtag(s) + " - " + s
+		LookupArray(i,0) = SelectionArray(i)
+		LookupArray(i,1) = Listtag(s)
+		i = i + 1
+	End Forall
+	
+	sSelection = Workspace.Prompt( PROMPT_OKCANCELLIST, "Remove Violation", "Select the violation you want to remove.", "", SelectionArray)
+	If sSelection <> "" Then
+		For i = Lbound(LookupArray) To Ubound(LookupArray)
+			If LookupArray(i,0) = sSelection Then
+				
+				Call RemoveViolation(Doc,LookupArray(i,1))
+				Call RestoreSection(uidoc, doc, sSelection)
+				
+			End If
+		Next
+	End If
+End Sub
+
+'++LotusScript Development Environment:2:2:RemoveSectionDialog:1:8
+Sub RemoveSectionDialog
+	
+	Dim workspace As New NotesUIWorkspace
+	Dim uidoc As NotesUIDocument
+	Dim doc As NotesDocument
+	Dim i As Integer
+	Dim Violations List As String
+	Dim iViolationCount As Integer
+	Dim SelectionArray As Variant
+	Dim LookupArray As Variant
+	Dim sSelection As String	
+	Dim vViolCode As Variant
+	Dim vViolDesc As Variant
+	Dim vViolSect As Variant
+	Dim pos As Integer
+	Dim total As Integer
+	
+	Set uidoc = workspace.CurrentDocument
+	Set doc = uidoc.document
+	vViolCode = doc.SectionNumber 
+	vViolDesc = doc.SectionDescription
+	vViolSect = doc.SectionStatus
+	
+	'Check if there are any violations to remove
+	If vViolCode(0) = "" Then
+		Messagebox "There are no Sections to remove.", 48, "Error"
+		Exit Sub
+	End If
+	
+	'Create unqiue list of violations
+	For i = Lbound(vViolCode) To Ubound(vViolCode)
+		If doc.Form(0) = "FoodRiskInspection" Then
+			Violations(vViolCode(i)) = "(Sect " & vViolSect(i) & ") " & vViolDesc(i)
+		Else
+			Violations(vViolDesc(i)) = "#" & vViolCode(i)
+		End If
+	Next
+	
+	'Count 'unique' violations
+	iViolationCount = 0
+	Forall s In Violations
+		iViolationCount = iViolationCount+1
+	End Forall
+	
+	Redim SelectionArray(iViolationCount-1) As String
+	Redim LookupArray(iViolationCount-1,1) As String
+	i = 0
+	Forall s In Violations
+		SelectionArray(i) = Listtag(s) + " - " + s
+		LookupArray(i,0) = SelectionArray(i)
+		total = Len(s)
+		pos = Instr(s,"#")
+		LookupArray(i,1) = Right(s,total-pos)
+		i = i + 1
+	End Forall
+	
+	sSelection = Workspace.Prompt( PROMPT_OKCANCELLIST, "Remove Section", "Select the violation you want to remove.", "", SelectionArray)
+	If sSelection <> "" Then
+		For i = Lbound(LookupArray) To Ubound(LookupArray)
+			If LookupArray(i,0) = sSelection Then
+				Call RestoreSection(uidoc, doc, sSelection)
+				Call RemoveSection(Doc,LookupArray(i,1))
+			End If
+		Next
+	End If
+	
+End Sub
+
+'++LotusScript Development Environment:2:1:CheckSizes:2:8
+Private Function CheckSizes( Code As Variant, Desc As Variant, Crit As Variant, Obs As Variant, CorrAct As Variant, Corrected As Variant, Rep As Variant, Sec As Variant _
+, Room As Variant, UseRoom As Boolean, Haz As Variant, UseHaz As Boolean, Lgl As Variant, UseLgl As Boolean, msg As Boolean ) As Boolean
+	
+	Dim good As Boolean
+	Dim session As New NotesSession
+	Dim ermsg As String
+	
+	good = Ubound( Code ) = Ubound( Desc )
+	good = good And Ubound( Code ) = Ubound( Crit )
+	good = good And Ubound( Code ) = Ubound( Obs )
+	good = good And Ubound( Code ) = Ubound( CorrAct )
+	good = good And Ubound( Code ) = Ubound( Corrected )
+	good = good And Ubound( Code ) = Ubound( Rep )
+	good = good And Ubound( Code ) = Ubound( Sec )
+	If UseRoom Then good = good And Ubound( Code ) = Ubound( Room )
+	If UseHaz Then good = good And Ubound( Code ) = Ubound( Haz )
+	If UseLgl Then good = good And Ubound( Code ) = Ubound( Lgl )
+	
+	If msg And Not good Then 
+		'we could enhance this with a prompt asking if they (or we!) want more info
+		If Right$( session.UserName, 23 ) = "OU=Office/O=HealthSpace" Then
+			ermsg = "Code " & Ubound( Code ) +1
+			If Ubound( Crit ) <> Ubound( Code ) Then ermsg = ermsg & Chr(13) & "Crit " & Ubound( Crit ) +1
+			If Ubound( Obs ) <> Ubound( Code ) Then ermsg = ermsg & Chr(13) & "Obs " & Ubound( Obs ) +1
+			If Ubound( CorrAct ) <> Ubound( Code ) Then ermsg = ermsg & Chr(13) & "CorrAct " & Ubound( CorrAct ) +1
+			If Ubound( Corrected ) <> Ubound( Code ) Then ermsg = ermsg & Chr(13) & "Corrected " & Ubound( Corrected ) +1
+			If Ubound( Rep ) <> Ubound( Code ) Then ermsg = ermsg & Chr(13) & "Rep " & Ubound( Rep ) +1
+			If Ubound( Sec ) <> Ubound( Code ) Then ermsg = ermsg & Chr(13) & "Sec " & Ubound( Sec ) +1
+			If UseRoom Then If Ubound( Room ) <> Ubound( Code ) Then ermsg = ermsg & Chr(13) & "Room " & Ubound( Room ) +1
+			If UseHaz Then If Ubound( Haz ) <> Ubound( Code ) Then ermsg = ermsg & Chr(13) & "Haz " & Ubound( Haz ) +1
+			If UseLgl Then If Ubound( Lgl ) <> Ubound( Code ) Then ermsg = ermsg & Chr(13) & "Lgl " & Ubound( Lgl ) +1
+			Msgbox ermsg, 48, "Violation array sizes are mismatched."
+		Else
+			Msgbox "Violation array sizes are mismatched. Continuing would corrupt the data. Please call HealthSpace for support.", 48, "Operation stopped"
+		End If
+	End If
+	
+	CheckSizes = good
+	
+End Function
+
+'++LotusScript Development Environment:2:2:AddViolationDialog:6:8
+%REM
+	22-Aug-2012, Brett Parker, AMTS-8V2LSY Change to violation document design for Food module ONLY
+		Line 96, changed param SingleCategory in method PickListCollection (param ViewName = "ViolationsBySection")
+		 from {sModule & "&" & sSection} to {sModule & "&" & sJurisdiction & "&" & sSection}
+%ENDREM
+Sub AddViolationDialog( ViolationsDB As NotesDatabase, InspView As NotesView )
+	
+	Dim session As New NotesSession
+	Dim DB As NotesDatabase
+	Dim workspace As New NotesUIWorkspace
+	Dim uidoc As NotesUIDocument
+	Dim CodeDocs As NotesDocumentCollection
+	Dim CodeDoc As NotesDocument 
+	Dim sModule As String
+	Dim sSection As String
+	Dim sJurisdiction As String
+	Dim bDone As Variant
+	Dim bErr_ExistsShown As Variant
+	Dim Facility As NotesDocument
+	Dim docParent As NotesDocument
+	Dim sViewName As String
+	Dim viewcheck As NotesView
+	Dim SectionView As NotesView
+	Dim SectionDoc As NotesDocument
+	Dim arrSection(1) As String
+	
+	On Error Goto Oooof
+	
+	'Initialization
+	bErr_ExistsShown = False
+	Set DB = Session.CurrentDatabase
+	Set uidoc = workspace.CurrentDocument
+	
+	'Validate connection to Violations Database
+	If ViolationsDB Is Nothing Then
+		Msgbox strErr_ViolationDBOpen, 48, "Add Violation Error"
+		Exit Sub
+	End If
+	If Not ViolationsDB.IsOpen Then
+		Msgbox strErr_ViolationDBOpen, 48, "Add Violation Error"
+		Exit Sub
+	End If
+	
+	'Determine correct module
+	If UIDoc.Document.ViolationSubModule(0) <> "" Then
+		If UIDoc.Document.ViolationSubModule(0) = "Waterslide" Then
+			sModule = Trim( UIDoc.Document.ViolationModule(0) )
+		Else
+			sModule = Trim( UIDoc.Document.ViolationSubModule(0) )
+		End If
+	Else
+		sModule = Trim( UIDoc.Document.ViolationModule(0) )
+	End If
+	
+	sJurisdiction = GetJurisdiction( DB, UIDoc.Document )
+	
+%REM
+	sViewName = "Violations" & sModule & sJurisdiction
+	
+	'Added on task NFRY-8FUPFM 
+	If DBDesign = "WA" Then
+		If UIDoc.Document.Form(0) = "SolidWasteReport" Then
+			sViewName = "ViolationsSolid WasteState"
+		End If
+	End If
+	
+	Set viewcheck = ViolationsDB.GetView( sViewName )
+	If viewcheck Is Nothing Then
+		Msgbox "The violations database does not contain a view for looking up the violation type " & sModule & sJurisdiction & ".  Please contact Healthspace.", 48, "Program error"
+		Exit Sub
+	End If
+	
+	'and now that we have the view, does it have anything in it??!??!
+	If viewcheck.AllEntries.Count = 0 Then
+		Msgbox "The violations database does not contain any violations of type " & sModule & sJurisdiction & ".  Please contact Healthspace.", 48, "Configuration error"
+		Exit Sub
+	End If
+%END REM
+	
+	'Prompt user for violations to add
+	If Not CheckAllViolationSizes(UIDoc.Document, 16000 ) Then 'hmmm, why are we checking 15K and 12K here, but 25K and 20K  later?
+		Messagebox strErr_ViolationLimit, 48, "Warning"
+		bDone = True
+	Else
+		If Not CheckAllViolationSizes(UIDoc.Document, 12500 ) Then
+			Messagebox strErr_ViolationSize, 48, "Warning"
+		End If
+		
+		If UIDoc.Document.ViolationSubModule(0) = "Waterslide" Then
+			sModule = "Waterslide"
+		End If
+		Stop
+		If sSection <> "" Then
+			Set CodeDocs = Workspace.PickListCollection( PICKLIST_CUSTOM, True, ViolationsDB.Server, _
+			ViolationsDB.FilePath, "ViolationsBySection", "New Violation - " & sModule & ", #" & sSection, _
+			"Select the new violation codes for section " & sSection & ".", sModule & "&" & sJurisdiction & "&" & sSection )
+		Else
+			Set CodeDocs = Workspace.PickListCollection( PICKLIST_CUSTOM, True, ViolationsDB.Server, ViolationsDB.FilePath,_
+			"ViolationsByModuleJurisdiction", "New Violation - " & sModule, "Select the new violation codes for this inspection.", sModule & " & " & sJurisdiction )
+		End If
+		
+		If Not CodeDocs Is Nothing Then
+			If CodeDocs.Count > 0 Then
+				Set CodeDoc = CodeDocs.GetFirstDocument
+				bDone = False
+				
+				While (Not CodeDoc Is Nothing) And (Not bDone)
+					
+					sSection = CodeDoc.SectionNumber(0)
+					Set SectionView = ViolationsDB.GetView("SectionLookup")
+					arrSection(0) = sModule
+					arrSection(1) = sSection
+					Print "Module = " sModule & " " & "Section = " & sSection
+					Set sectiondoc = SectionView.GetDocumentByKey(arrSection,True)
+					If Not sectiondoc Is Nothing Then
+						Print sectiondoc.Description(0)
+						uidoc.Document.ViolationSectionDescription = sectiondoc.Description(0)
+						If sectiondoc.HasItem("HazardRating") Then
+							uidoc.Document.ViolationHazardRating=sectiondoc.HazardRating(0)
+						Else
+							uidoc.Document.ViolationHazardRating="0"
+						End If
+					Else
+						Print "NO SECTION"
+					End If
+					
+					Call AddViolation(CodeDoc, db, bDone, UIDoc.Document, InspView)
+					If Not CheckAllViolationSizes( UIDoc.Document, 25000 ) Then  'hmmm, why are we checking 25K and 20K here, but 15K and 12K  earlier?
+						Messagebox strErr_ViolationLimit, 48, "Warning"
+						bDone = True
+					Elseif Not CheckAllViolationSizes( UIDoc.Document, 20000 ) Then
+						Messagebox strErr_ViolationSize, 48, "Warning"
+					End If
+					Set CodeDoc = CodeDocs.GetNextDocument(CodeDoc)
+				Wend
+			End If
+		End If
+	End If
+	
+Wheee:
+	Exit Sub
+	
+Oooof:
+	Msgbox "There was a problem in AddViolationDialog, at line" & Erl & ". (" & Error & ")"
+	Resume Wheee
+	
+End Sub
+
+
+
+'++LotusScript Development Environment:2:1:Tools_CodeExists:1:8
+Private Function Tools_CodeExists(Code As String, InspectionDoc As NotesDocument) As Variant
+	'Default Function Result
+	Tools_CodeExists = False
+	
+	'Check to see if the existing code exists
+	Forall temp In InspectionDoc.ViolCode
+		If Lcase(temp) = Lcase(Code) Then Tools_CodeExists = True
+	End Forall
+End Function
+
+'++LotusScript Development Environment:2:2:BuildDisplayFieldHotel:1:8
+Sub BuildDisplayFieldHotel(Doc As NotesDocument, WhichOne As String)
+	
+	Const PADDING = "      "
+	
+	Dim ViolDesc List As String
+	Dim ViolCritical List As String
+	Dim vViolCodes As Variant
+	Dim vViolObservations As Variant
+	Dim vViolCorrections As Variant
+	Dim vViolRepeat As Variant
+	Dim vViolRoom As Variant
+	Dim vViolCorrected As Variant
+	
+	Dim Code As NotesItem
+	Dim Observation As NotesItem
+	Dim Description As NotesItem
+	Dim Critical As NotesItem
+	Dim Repeat As NotesItem
+	Dim Correction As NotesItem
+	Dim Room As NotesItem
+	Dim Corrected As NotesItem
+	
+	Dim i As Integer
+	Dim ctr As Integer
+	Dim iCount As Integer
+	Dim OutString() As String
+	Dim strTarget As String
+	Dim strLabel As String
+	
+	iCount = 0
+	Redim OutString(0)
+	
+	If WhichOne = "REMOVED" Then
+		strTarget = "Corrected"
+	Else
+		strTarget = ""
+	End If
+	
+	Set Code = Doc.GetFirstItem("Viol" & strTarget & "Code")
+	Set Observation = Doc.GetFirstItem("Viol" & strTarget & "Observations")
+	Set Description = Doc.getFirstItem("Viol" & strTarget & "Description")
+	Set Critical = Doc.GetFirstItem("Viol" & strTarget & "CriticalSet")
+	Set Repeat = Doc.GetFirstItem("Viol" & strTarget & "Repeat")
+	Set Correction = Doc.GetFirstItem("Viol" & strTarget & "CorrectiveActions")
+	Set Corrected = Doc.GetFirstItem("Viol" & strTarget & "CorrectedSet")
+	Set Room = Doc.getFirstItem("Viol" & strTarget & "Room")
+	
+	If Code Is Nothing Then Exit Sub
+	
+	' Check to see if the fields are not there
+	If Code Is Nothing Then
+		If WhichOne <> "REMOVED" Then
+			OutString(0) = "No violations entered."
+		End If
+	Else
+		If Not CheckSizes( Code.Values, Description.Values, Critical.Values, Observation.Values, Correction.Values, Corrected.Values _
+		, Room.Values, Room.Values, Nothing, False, Nothing, False,  Nothing, False, False ) Then
+			OutString(0) = "Caution! Violation array sizes are mismatched."
+			icount = iCount + 1
+		End If	
+		
+		vViolCodes = Code.Values
+		vViolObservations = Observation.Values
+		vViolCorrections = Correction.Values
+		vViolRepeat = Repeat.Values
+		vViolCorrected = Corrected.Values
+		If Not Room Is Nothing Then
+			vViolRoom = Room.Values
+		End If
+		
+		' Normalize array sizes to prevent run-time errors
+		If Ubound(vViolCodes) > Ubound(vViolCorrections) Then
+			Redim Preserve vViolCorrections(Ubound(vViolCodes))
+		End If
+		If Ubound(vViolCodes) > Ubound(vViolObservations) Then
+			Redim Preserve vViolObservations(Ubound(vViolCodes))
+		End If
+		If Ubound(vViolCodes) > Ubound(vViolRepeat) Then
+			Redim Preserve vViolRepeat(Ubound(vViolCodes))
+		End If
+		If Ubound(vViolCodes) > Ubound(vViolCorrected) Then
+			Redim Preserve vViolCorrected(Ubound(vViolCodes))
+		End If
+		If Not Room Is Nothing Then
+			If Ubound(vViolCodes) > Ubound(vViolRoom) Then
+				Redim Preserve vViolRoom(Ubound(vViolCodes))
+			End If
+		End If
+		
+		If vViolCodes(0) = "" Then
+			Redim OutString(0)
+			If WhichOne <> "REMOVED" Then
+				OutString(0) = "No violations entered."
+			End If
+		Else
+			'Generate arrays of violation descriptions and critical flags
+			For i = Lbound(vViolCodes) To Ubound(vViolCodes)
+				ViolDesc(vViolCodes(i)) = Description.Values(i)
+				ViolCritical(vViolCodes(i)) = Critical.Values(i)
+			Next
+			
+			'Generate Result
+			Forall desc In ViolDesc
+				
+				'Build primary description
+				iCount = iCount + 1
+				Redim Preserve OutString(iCount-1) As String
+				If iCount <> 1 Then
+					'Space
+					iCount = iCount + 1
+					Redim Preserve OutString(iCount-1) As String
+					OutString(iCount-1) = ""
+				End If
+				
+				OutString(iCount-1) = Listtag(desc) & " - " & desc 'removed truncation
+				
+				'Add critical tag if required
+				If Instr(ViolCritical(Listtag(desc)), "Critical") Then
+					iCount = iCount + 1
+					Redim Preserve OutString(iCount-1) As String
+					OutString(iCount-1) = PADDING & "This is a critical violation"
+				End If
+				
+				'Add room#, observations, corrections, repeats
+				If Doc.Form(0) = "RadiationReport" Then strLabel = "Device: " Else strLabel = "Room: "
+				For i = Lbound(vViolCodes) To Ubound(vViolCodes)
+					If vViolCodes(i) = Listtag(desc) Then
+						iCount = iCount + 3
+						Redim Preserve OutString(iCount-1) As String
+						If Not Room Is Nothing Then
+							If Ubound(vViolRoom) >= i Then
+								OutString(iCount-3) = PADDING & strLabel & vViolRoom(i) 
+							Else
+								OutString(iCount-3) = PADDING & strLabel
+							End If
+						Else
+							OutString(iCount-3) = PADDING & strLabel
+						End If
+						OutString(iCount-2) = PADDING & "Observation"
+						If Instr(vViolRepeat(i), "Repeat") Then OutString(iCount-2) = OutString(iCount-2) + " (REPEAT)"
+						If Instr(vViolCorrected(i), "Corrected") Then OutString(iCount-2) = OutString(iCount-2) + " (CORRECTED DURING INSPECTION)"
+						OutString(iCount-2) = OutString(iCount-2) + ": " + vViolObservations(i) 'removed truncation
+						If Trim(vViolCorrections(i)) <> "" Then
+							OutString(iCount-1) = PADDING & "Correction: " & vViolCorrections(i) 'removed truncation
+						End If
+					End If
+				Next
+			End Forall
+		End If
+	End If
+	If WhichOne = "REMOVED" Then
+		Call Doc.ReplaceItemValue("CorrectionDisplay",OutString)
+	Else
+		Call Doc.ReplaceItemValue("ViolationDisplay",OutString)
+	End If
+End Sub
+
+'++LotusScript Development Environment:2:1:CheckSchdInspViolation:1:8
+Function CheckSchdInspViolation( InspectionDoc As NotesDocument, OriginalValue As String, ViolationCounter As Integer, db As NotesDatabase, InspView As NotesView )
+	Dim ws As New NotesUIWorkspace
+	Dim MasterSettings As NotesDocument
+	Dim GlobalSettings As NotesDocument
+	Dim Inspections As NotesViewEntryCollection
+	Dim Inspection As NotesViewEntry
+	Dim CurInspection As NotesDocument
+	Dim ThisDate,LastDate As Variant
+	Dim NumToSearchBack As Integer
+	Dim iCurrentNumberBack As Integer
+	Dim iViolInstance As Integer
+	Dim CurViolationCounter As Integer
+	Dim RepeatObservation As NotesDocument
+	Dim resp As Variant 
+	Dim bDone As Variant
+	Dim bInspType As Boolean
+	Dim strObservations As String
+	Dim strScheduledTypes
+	
+	Set MasterSettings = HSGetProfileDocument(Db, "MasterSettings")
+	Set GlobalSettings = HSGetProfileDocument(Db, "GlobalSettings")
+	
+	If MasterSettings.InstanceNotification(0) <> "Yes" Then Exit Function
+	
+	ThisDate = InspectionDoc.InspectionDate(0)
+	bDone = False
+	iCurrentNumberBack = 0
+	If Isnumeric(GlobalSettings.NoPreviousInsp(0)) Then 
+		NumToSearchBack = Cint(GlobalSettings.NoPreviousInsp(0))
+	Else
+		NumToSearchBack = 1
+	End If
+	
+	If InspectionDoc.ParentDocumentUNID <> "" Then
+	' Iterate through inspections looking at inspections older than current inspection
+		Set Inspections = InspView.GetAllEntriesByKey( InspectionDoc.ParentDocumentUNID,True )
+		Set Inspection = Inspections.GetFirstEntry
+		If Not Inspection Is Nothing Then
+			While (Not Inspection Is Nothing) And bDone = False
+				bInspType = False
+				Set CurInspection = Inspection.Document
+				CurViolationCounter = 0
+				If Lcase(CurInspection.Form(0)) = Lcase(InspectionDoc.Form(0)) Then
+					LastDate = CurInspection.InspectionDate(0)
+					
+				' Only look at older violations that appear in scheduled inspection types
+					If LastDate < ThisDate Then
+						strScheduledTypes = ""
+						Forall InspType In MasterSettings.InspectionScheduledTypes 
+							strScheduledTypes = strScheduledTypes & InspType & ", "
+							If CurInspection.Type(0) = InspType Then 
+								bInspType = True
+								iCurrentNumberBack = iCurrentNumberBack + 1
+							End If
+						End Forall
+						strScheduledTypes = Left(strScheduledTypes,Len(strScheduledTypes)-2)
+						
+						If bInspType Then
+							Forall CurCode In CurInspection.ViolCode
+								If CurCode = InspectionDoc.ViolCode( ViolationCounter ) Then
+									iViolInstance = iViolInstance + 1
+									If iViolInstance = NumToSearchBack - 1 Then
+										Messagebox NumToSearchBack & " consecutive inspections have the same violation. The scheduled inspection types checked are " & strScheduledTypes,48, "Violation Alert"
+									End If
+									CurViolationCounter = CurViolationCounter + 1
+								End If
+							End Forall
+						End If
+					End If
+				End If
+				Set Inspection = Inspections.GetNextEntry( Inspection )
+				' Check exit conditions
+				If iCurrentNumberBack = NumToSearchBack Then
+					bDone = True
+				End If
+			Wend
+		End If
+	End If
+End Function
+
+'++LotusScript Development Environment:2:1:AddObservationDialog:2:8
+Function AddObservationDialog( ViolationsDB As NotesDatabase, cbox As String, _
+theCodes As NotesDocumentCollection, fld As NotesItem ) As Integer
+	
+	'jbc 18Feb2010 this function does not handle LegalText or HazardRating. I did not experience crashes here during my testing. Perhaps the function is not used?
+	
+	Dim session As New NotesSession
+	Dim DB As NotesDatabase
+	Dim workspace As New NotesUIWorkspace
+	Dim uidoc As NotesUIDocument
+	Dim CodeDocs As NotesDocumentCollection
+	Dim CodeDoc As NotesDocument
+	Dim InspDoc As NotesDocument
+	Dim docParent As NotesDocument
+	Dim Ret As Integer
+	
+	Dim Code As NotesItem
+	Dim Description As NotesItem
+	Dim CriticalSet As NotesItem
+	Dim Observations As NotesItem
+	Dim CorrectiveActions As NotesItem
+	Dim Repeat As NotesItem
+	Dim Corrected As NotesItem
+	Dim Room As NotesItem
+	Dim Section As NotesItem
+	
+	'Initialization
+	Set DB = Session.CurrentDatabase
+	Set uidoc = workspace.CurrentDocument
+	Set InspDoc = uidoc.Document
+	
+	'Validate connection to Violations Database
+	If ViolationsDB Is Nothing Then
+		Msgbox strErr_ViolationDBOpen, 48, "Add Violation Error"
+		Exit Function
+	End If
+	If Not ViolationsDB.IsOpen Then
+		Msgbox strErr_ViolationDBOpen, 48, "Add Violation Error"
+		Exit Function
+	End If
+	
+	If Not CheckAllViolationSizes( InspDoc, 15000 ) Then 'hmmm, why are we checking 15K and 12K here, but 25K and 20K  later?
+		Messagebox strErr_ViolationLimit, 48, "Warning"
+		Exit Function
+	Else
+		If Not CheckAllViolationSizes( InspDoc, 12000 ) Then
+			Messagebox strErr_ViolationSize, 48, "Warning"
+		End If
+		
+		'Build a list of code descriptions
+		
+		Dim resp As Variant
+		Dim Confirm As Variant
+		Dim choices () As String
+		Dim defaults () As String
+		Dim n As Integer
+		Dim nn As Integer
+		Dim doc As NotesDocument
+		
+		Redim choices (0) As String
+		Redim defaults (0) As String
+		
+		Set doc = thecodes.getfirstdocument
+		While Not doc Is Nothing
+			Redim Preserve choices (n) As String
+			choices(n) = n+1 & ". - " & doc.Code(0) & " " & doc.Observation(0)
+			If fld.contains( doc.Observation(0) ) Then
+				Redim Preserve defaults(nn) As String
+				defaults(nn) = choices(n)
+				nn = nn + 1
+			End If
+			n = n + 1
+			Set doc = thecodes.getnextdocument( doc )
+		Wend
+		
+		'Prompt for which ones to use
+		resp = Workspace.Prompt( PROMPT_OKCANCELLISTMULT, cbox, _
+		"Which of these did you observe?", defaults, choices )
+		
+		If Isempty( resp ) Then
+			If defaults(0) = "" Then 
+				Confirm = 1
+			Else
+				Confirm = Workspace.Prompt( PROMPT_YESNO, "Confirmation required", _
+				"Do you want to remove all the observations for " & cbox & "?" )
+			End If
+			If Confirm = 1 Then
+				RemoveAllObservations TheCodes, InspDoc 
+			Else 
+				AddObservationDialog = -1
+			End If
+			Exit Function
+		End If
+		RemoveAllObservations TheCodes, InspDoc 
+		If resp(0) = "" Then Exit Function
+		
+		'build a collection of docs matching the choices
+		Set CodeDocs = ViolationsDB.GetProfileDocCollection( "I sincerely hope there are none of these!" )
+		Forall s In resp
+			n = Val( Left$( s, Instr( s, "." ) - 1 ))
+			Set doc = thecodes.getnthdocument( n )
+			CodeDocs.AddDocument doc 
+		End Forall
+		
+		If CodeDocs.Count > 0 Then
+			Set Code = InspDoc.GetFirstItem( "ViolCode" )
+			If Code Is Nothing Then 
+				Set Code = InspDoc.ReplaceItemValue( "ViolCode", "" )
+				Set Description = InspDoc.ReplaceItemValue( "ViolDescription", "" )
+				Set CriticalSet = InspDoc.ReplaceItemValue( "ViolCriticalSet", "" )
+				Set Observations = InspDoc.ReplaceItemValue( "ViolObservations", "" )
+				Set CorrectiveActions = InspDoc.ReplaceItemValue( "ViolCorrectiveActions", "" )
+				Set Repeat = InspDoc.ReplaceItemValue( "ViolRepeat", "" )
+				Set Corrected = InspDoc.ReplaceItemValue( "ViolCorrectedSet", "" )
+				Set Room = InspDoc.ReplaceItemValue( "ViolRoom", "" )
+				Set Section = InspDoc.ReplaceItemValue( "ViolSection", "" )
+			Else
+				Set Description = InspDoc.GetFirstItem( "ViolDescription" )
+				Set CriticalSet = InspDoc.GetFirstItem( "ViolCriticalSet" )
+				Set Observations = InspDoc.GetFirstItem( "ViolObservations" )
+				Set CorrectiveActions = InspDoc.GetFirstItem( "ViolCorrectiveActions" )
+				Set Repeat = InspDoc.GetFirstItem( "ViolRepeat" )
+				Set Corrected = InspDoc.GetFirstItem( "ViolCorrectedSet" )
+				Set Room = InspDoc.GetFirstItem( "ViolRoom" )
+				If Room Is Nothing Then 'room has special treatment in BuildDisplayField
+					Set Room = InspDoc.ReplaceItemValue( "ViolRoom", "" )
+				End If
+				Set Section = InspDoc.GetFirstItem( "ViolSection" )
+			End If			
+			
+			Set CodeDoc = CodeDocs.GetFirstDocument
+			While Not CodeDoc Is Nothing
+				
+				Set DocParent = hsgetparentbyUNID( CodeDoc.ParentDatabase, CodeDoc, "ViolationCode" )
+				If DocParent Is Nothing Then
+					Msgbox "There is no Description for code " & CodeDoc.Code(0) & "re: " & CodeDoc.Observations(0)
+				Else
+					Ret = Ret + 1
+					Code.AppendToTextList( DocParent.Code(0) )
+					Description.AppendToTextList( DocParent.Description(0) )
+					CriticalSet.AppendToTextList( DocParent.Critical(0) )
+					If Trim( CodeDoc.Observation(0) ) = "" Then
+						Observations.AppendToTextList( " " )
+					Else
+						Observations.AppendToTextList( CodeDoc.Observation(0) )
+					End If
+					If Trim( CodeDoc.Correction(0) ) = "" Then
+						CorrectiveActions.AppendToTextList( " " )
+					Else
+						CorrectiveActions.AppendToTextList( CodeDoc.Correction(0) )
+					End If
+					Repeat.AppendToTextList( " " )
+					Corrected.AppendToTextList( " " )
+					Room.AppendToTextList( " " )
+					Section.AppendToTextList( CodeDoc.Section(0) )
+					
+					If Not CheckAllViolationSizes( InspDoc, 25000 ) Then  'hmmm, why are we checking 25K and 20K here, but 15K and 12K  earlier?
+						Messagebox strErr_ViolationLimit, 48, "Warning"
+						Exit Function
+					Elseif Not CheckAllViolationSizes( InspDoc, 20000 ) Then
+						Messagebox strErr_ViolationSize, 48, "Warning"
+					End If
+				End If
+				
+				Set CodeDoc = CodeDocs.GetNextDocument(CodeDoc)
+			Wend
+		End If
+	End If
+	
+	AddObservationDialog = Ret
+End Function
+
+'++LotusScript Development Environment:2:2:BuildDisplayFieldVDH:8:8
+%REM
+	22-Aug-2012, Brett Parker, AMTS-8V2LSY Change to violation document design for Food module ONLY
+		New var ViolCritical, set at line 127
+		Line 147 - 163, added code to create tag for critical hazard or 2009 food code items
+		Line 166, changed "iCount = iCount + 3" to "iCount = iCount + 2"
+		Line 169, commented out {If Instr(vViolCritical(i),...}
+%ENDREM
+Sub BuildDisplayFieldVDH(Doc As NotesDocument, WhichOne As String)
+	
+	Const PADDING = "      "
+	
+	Dim ViolDesc List As String
+	Dim vViolCodes As Variant
+	Dim vViolObservations As Variant
+	Dim vViolCorrections As Variant
+	Dim vViolRepeat As Variant
+	Dim vViolCorrected As Variant
+	Dim vViolCritical As Variant
+	Dim ViolSection List As String
+	Dim ViolCritical List As String
+	
+	Dim Code As NotesItem
+	Dim Observation As NotesItem
+	Dim Description As NotesItem
+	Dim Critical As NotesItem
+	Dim Repeat As NotesItem
+	Dim Correction As NotesItem
+	Dim Corrected As NotesItem
+	Dim Section As NotesItem
+	
+	Dim i As Integer
+	Dim iCount As Integer
+	Dim OutString() As String
+	Dim strTarget As String
+	Dim dx As Integer
+	
+	Dim MasterSettings As NotesDocument
+	Dim DisabledSubItem As NotesItem
+	Dim ShowCritical As Boolean
+	
+	Set MasterSettings = HSGetProfileDocument(doc.ParentDatabase, "MasterSettings")
+	If MasterSettings.HasItem("DisabledSub") Then
+		Set DisabledSubItem = MasterSettings.GetFirstItem("DisabledSub")
+		ShowCritical = Not DisabledSubItem.Contains( "Critical Violation Display" )
+	End If	
+	
+	iCount = 0
+	Redim OutString(0)
+	
+	If WhichOne = "REMOVED" Then
+		strTarget = "Corrected"
+	Else
+		strTarget = ""
+	End If
+	
+	Set Code = Doc.GetFirstItem("Viol" & strTarget & "Code")
+	If Code Is Nothing Then Exit Sub 'wondering why this is here if we are setting OutString later if code is nothing
+	Set Description = Doc.getFirstItem("Viol" & strTarget & "Description")
+	Set Observation = Doc.GetFirstItem("Viol" & strTarget & "Observations")
+	Set Correction = Doc.GetFirstItem("Viol" & strTarget & "CorrectiveActions")
+	Set Critical = Doc.GetFirstItem("Viol" & strTarget & "CriticalSet")
+	Set Repeat = Doc.GetFirstItem("Viol" & strTarget & "Repeat")
+	'crap whay is there no ViolCorrectedSet on this doc?!?!?
+	If Doc.HasItem( "Viol" & strTarget & "CorrectedSet" ) Then
+		Set Corrected = Doc.GetFirstItem("Viol" & strTarget & "CorrectedSet")
+	Else
+		Set Corrected = Doc.ReplaceItemValue( "Viol" & strTarget & "CorrectedSet", "" )	
+	End If	
+	'section will probably not exist on older inspections
+	If Doc.HasItem( "Viol" & strTarget & "Section" ) Then
+		Set Section = Doc.GetFirstItem( "Viol" & strTarget & "Section" )
+	Else
+		Set Section = Doc.ReplaceItemValue( "Viol" & strTarget & "Section", "" )	
+	End If	
+	'ensure the section field has enough elements, in case we open an old doc with no sections
+	If Ubound(Section.Values) <> Ubound(Code.Values) Then
+		Dim arr () As String
+		Redim arr (Ubound(Code.Values)) As String
+		For i = 0 To Ubound(Code.Values)
+			If i <= Ubound(Section.Values) Then arr(i) = Section.Values(i) Else arr(i) = ""
+		Next
+		Section.Values = arr
+	End If
+	
+	' Check to see if the fields are not there
+	If Code Is Nothing Then 'this will never happen, we ExitSub above!!!
+		If WhichOne <> "REMOVED" Then
+			OutString(0) = "No violations entered."
+		End If
+	Else
+		If Not CheckSizes( Code.Values, Description.Values, Critical.Values, Observation.Values, Correction.Values, Corrected.Values _
+		, Repeat.Values, Section.Values, Nothing, False, Nothing, False,  Nothing, False, False ) Then
+			OutString(0) = "Caution! Violation array sizes are mismatched."
+			icount = iCount + 1
+		End If	
+		
+		vViolCodes = Code.Values
+		vViolObservations = Observation.Values
+		vViolCorrections = Correction.Values
+		vViolRepeat = Repeat.Values
+		vViolCorrected = Corrected.Values
+		vViolCritical = Critical.Values
+		
+		' Normalize array sizes to prevent run-time errors
+		If Ubound(vViolCodes) > Ubound(vViolCorrections) Then
+			Redim Preserve vViolCorrections(Ubound(vViolCodes))
+		End If
+		If Ubound(vViolCodes) > Ubound(vViolObservations) Then
+			Redim Preserve vViolObservations(Ubound(vViolCodes))
+		End If
+		If Ubound(vViolCodes) > Ubound(vViolRepeat) Then
+			Redim Preserve vViolRepeat(Ubound(vViolCodes))
+		End If
+		If Ubound(vViolCodes) > Ubound(vViolCorrected) Then
+			Redim Preserve vViolCorrected(Ubound(vViolCodes))
+		End If
+		
+		If vViolCodes(0) = "" Then
+			Redim OutString(0)
+			If WhichOne <> "REMOVED" Then
+				OutString(0) = "No violations entered."
+			End If
+		Else
+			'Generate arrays of violation descriptions and critical flags
+			For i = Lbound(vViolCodes) To Ubound(vViolCodes)
+				ViolDesc(vViolCodes(i)) = Description.Values(i)
+				ViolCritical(vViolCodes(i)) = Critical.Values(i)
+				ViolSection(vViolCodes(i)) = Section.Values(i)
+			Next
+			
+			'Generate Result
+			Forall desc In ViolDesc
+				
+				'Build primary description
+				iCount = iCount + 1
+				Redim Preserve OutString(iCount-1) As String
+				If iCount <> 1 Then
+					'Space
+					iCount = iCount + 1
+					Redim Preserve OutString(iCount-1) As String
+					OutString(iCount-1) = ""
+				End If
+				OutString(iCount-1) = Listtag(desc) & " - " & desc 'removed truncation
+				
+				'Add critical tag if required 'add core, priority, and priority foundation tags for Food Code 2009
+				If Instr(ViolCritical(Listtag(desc)), "Critical") Then
+					iCount = iCount + 1
+					Redim Preserve OutString(iCount-1) As String
+					OutString(iCount-1) = PADDING & "This is a critical violation"
+				Elseif Instr(ViolCritical(Listtag(desc)), "Core Item") Then
+					iCount = iCount + 1
+					Redim Preserve OutString(iCount-1) As String
+					OutString(iCount-1) = PADDING & "This is a core item"
+				Elseif Instr(ViolCritical(Listtag(desc)), "Priority Item") Then
+					iCount = iCount + 1
+					Redim Preserve OutString(iCount-1) As String
+					OutString(iCount-1) = PADDING & "This is a priority item"
+				Elseif Instr(ViolCritical(Listtag(desc)), "Priority Foundation Item") Then
+					iCount = iCount + 1
+					Redim Preserve OutString(iCount-1) As String
+					OutString(iCount-1) = PADDING & "This is a priority foundation item"
+				End If
+				
+				'Add observations, corrections, repeats, and criticals
+				For i = Lbound(vViolCodes) To Ubound(vViolCodes)
+					If vViolCodes(i) = Listtag(desc) Then
+						iCount = iCount + 2
+						Redim Preserve OutString(iCount-1) As String
+						'If Instr(vViolCritical(i), "Critical") Then OutString(iCount-3) = OutString(iCount-3) + PADDING & "This is a critical violation"
+						OutString(iCount-2) = PADDING & "Observation"
+						If Instr(vViolRepeat(i), "Repeat") Then OutString(iCount-2) = OutString(iCount-2) + " (REPEAT)"
+						If Instr(vViolCorrected(i), "Corrected") Then OutString(iCount-2) = OutString(iCount-2) + " (CORRECTED DURING INSPECTION)"
+						OutString(iCount-2) = OutString(iCount-2) + ": " + vViolObservations(i) 'removed truncation\
+						If Trim(vViolCorrections(i)) <> "" Then
+							OutString(iCount-1) = PADDING & "Correction: " & vViolCorrections(i) 'removed truncation
+						End If
+					End If
+				Next
+			End Forall
+		End If
+	End If
+	If WhichOne = "REMOVED" Then
+		Call Doc.ReplaceItemValue("CorrectionDisplay",OutString)
+	Else
+		Call Doc.ReplaceItemValue("ViolationDisplay",OutString)
+	End If
+	
+End Sub
+
+'++LotusScript Development Environment:2:2:RestoreSection:1:8
+Sub RestoreSection(uidoc As NotesUIDocument, doc As NotesDocument, sSelection As Variant)
+	
+	
+	
+	'not needed any more!
+	
+	
+	
+	Exit Sub
+	
+	
+	
+	Dim ws As New NotesUIWorkspace
+	Dim session As New NotesSession
+	Dim db As NotesDatabase
+	Dim violationdb As NotesDatabase
+	Dim sectionfolder As NotesView
+	Dim sectionview As NotesView
+	Dim sectiondoc As NotesDocument
+	Dim newsectiondoc As NotesDocument
+	Dim lookuparr(1) As String
+'	Dim sectionitem As NotesItem
+	Dim pos As Integer
+	Dim total As Integer
+	Dim existinglookup(0 To 5) As Variant
+	Dim existingdoc As NotesDocument
+	
+	Set db = session.CurrentDatabase
+	Set violationdb = New NotesDatabase("","")
+	
+	Call violationdb.OpenByReplicaID(db.Server, ViolationsID )
+	Call ws.AddDatabase(db.Server,violationdb.filepath)
+	
+	Set sectionfolder = violationdb.GetView("Violation Section")
+	Set sectionview = violationdb.GetView("SectionLookup")
+	
+	If uidoc.Document.ViolationSubModule(0) = "Vending" Then
+		lookuparr(0) = uidoc.Document.ViolationSubModule(0)
+	Else
+		lookuparr(0) = uidoc.Document.ViolationModule(0)	
+	End If
+	
+	total = Len(sSelection)
+	pos = Instr(sSelection,"#")
+	lookuparr(1) = Right(sSelection,total-pos)
+	
+	Set sectiondoc = sectionview.GetDocumentByKey(lookuparr, True)
+	
+	If Not sectiondoc Is Nothing Then
+%REM why are we screwing with .ViolSection in here? Should only care about .SectionNumber, right? sectionitem is never used again
+		If uidoc.Document.ViolSection(0) <> "" And uidoc.Document.SectionNumber(0) <> "" Then
+			Set sectionitem = uidoc.Document.GetFirstItem("ViolSection")
+			Call sectionitem.AppendToTextList(uidoc.Document.SectionNumber)
+		Elseif uidoc.Document.ViolSection(0) <> "" Then
+			Set sectionitem = uidoc.Document.GetFirstItem("ViolSection")
+		Elseif uidoc.Document.SectionNumber(0) <> "" Then
+			Set sectionitem = uidoc.Document.GetFirstItem("SectionNumber")
+		Else
+			Set sectionitem = Nothing 
+		End If
+%END REM
+		
+		Set newsectiondoc = violationdb.CreateDocument
+		Call sectiondoc.CopyAllItems(newsectiondoc, True)
+		newsectiondoc.Form = "New Section"
+		newsectiondoc.DocumentID = Evaluate("@Unique")
+		newsectiondoc.InspectionDocumentID = uidoc.document.DocumentID(0)
+		
+		existinglookup(0) = newsectiondoc.InspectionDocumentID(0)
+'		Print existinglookup(0)	
+		If Cstr(newsectiondoc.SectionGroupSort(0)) = "" Then
+			existinglookup(1) = 1
+		Else
+			existinglookup(1) = newsectiondoc.SectionGroupSort(0)
+		End If
+'		Print Cstr(existinglookup(1))
+		existinglookup(2) = newsectiondoc.SectionGroup(0)
+'		Print existinglookup(2)
+		If newsectiondoc.SectionGroupNumber(0) = "" Then
+			existinglookup(3) = ""
+		Else
+			existinglookup(3) = Cint(newsectiondoc.SectionGroupNumber(0))
+		End If		
+'		Print Cstr(existinglookup(3))
+		existinglookup(4) = newsectiondoc.Category(0)
+'		Print existinglookup(4)
+		existinglookup(5) = newsectiondoc.SectionNumber(0)
+'		Print existinglookup(5)
+		
+		Set existingdoc = Nothing	
+		Set existingdoc = sectionfolder.GetDocumentByKey(existinglookup,True)
+		If existingdoc Is Nothing Then
+'			Print "NO Existing Checklist."
+			Call newsectiondoc.Save(True,True)
+			Call newsectiondoc.PutInFolder("Violation Section")
+			Call sectionfolder.Refresh
+		Else
+'			Print "Existing Checklist already there."
+		End If
+	End If
+	
+End Sub
+
+'++LotusScript Development Environment:2:1:GetJurisdiction:1:8
+Function GetJurisdiction( db As NotesDatabase, insp As NotesDocument ) As String
+	
+	Dim Facility As NotesDocument
+	Dim docParent As NotesDocument
+	Dim bfound As Boolean
+	
+	GetJurisdiction = "State" 'if things go bad, use State
+	'Find the facility document to get jurisdiction
+	Set docParent = HSGetDocumentByUNID(DB, insp.ParentDocumentUNID, False)
+	Do Until docParent Is Nothing
+		If Instr(docParent.Form(0), "Facility") Or docParent.Form(0) = "PersonalService" Or docParent.Form(0) = "TemporaryFood" Then
+			If docParent.Violations(0) <> "" Then
+				GetJurisdiction = docParent.Violations(0)
+				Exit Function
+			End If
+		End If 
+		Set docParent = HSGetDocumentByUNID(DB, docParent.ParentDocumentUNID, False)
+	Loop
+	
+End Function 
+
+'++LotusScript Development Environment:2:1:SumHazardRating:1:8
+Private Function SumHazardRating(vHazardRatings As Variant) As String
+	
+	'this function will add the section's hazard value once for each Observation. If you want once for each Section or Violation, go build another function
+	'also note thatwhile we compute a number we returnit as a text string!!!  (what was MLackey thinking?)
+	
+	Dim i As Integer
+	Dim iTotal As Integer
+	
+	On Error Goto err_summing
+	
+	If Isarray( vhazardratings ) Then
+		For i = 0 To Ubound(vHazardRatings)
+			iTotal = iTotal + Cint( vHazardRatings(i))		
+		Next
+	End If
+	
+err_summing:
+	Resume here
+	'quietly use what we got so far, probably Zero
+here:
+	SumHazardRating = Cstr(iTotal)
+	
+End Function
+
+'++LotusScript Development Environment:2:2:RemoveItemValue:1:8
+Sub RemoveItemValue( it As NotesItem, idx As Integer )
+	'given a notesitem, removes the 
+	Dim arr () As Variant
+	Dim i As Integer
+	
+	If Not it Is Nothing Then
+		If idx <= Ubound( it.Values ) And idx >= 0 Then
+			If Ubound( it.Values ) = 0 Then 'there's only one, just wipe it out
+				Redim arr(0) As Variant
+			Else
+				Redim arr (Ubound( it.Values )-1) As Variant
+				For i = 0 To Ubound(arr)
+					If i < idx Then
+						arr(i) = it.Values(i)
+					Else
+						arr(i) = it.Values(i+1)
+					End If
+				Next					
+			End If 'ubound =0
+			it.Values = arr
+		End If 'idx < ubound 
+	End If 'nothing
+	
+End Sub
+
+'++LotusScript Development Environment:2:2:EditViolation:5:8
+%REM
+	23-Aug-2012, Brett Parker, AMTS-8V2LSY Change to violation document design for Food module ONLY
+		Line 162, added "Entrydoc.FoodCode2009Districts = ehsmsettings.FoodCode2009Districts"
+%ENDREM
+Sub EditViolation(Code As String, DB As NotesDatabase,InspDoc As NotesDocument, InspView As NotesView ,ViolationsDB As NotesDatabase)
+	
+	Dim Workspace As New NotesUIWorkspace
+	Dim i As Integer
+	Dim k As Integer
+	Dim View As Notesview
+	Dim CodeDoc As NotesDocument
+	Dim Entrydoc As NotesDocument
+	Dim GlobalSettings As NotesDocument
+	Dim sStatus As String
+	Dim sModule As String
+	
+	Dim vOrigCode As Variant
+	Dim vOrigDescription As Variant
+	Dim vOrigCriticalSet As Variant
+	
+	Dim vOrigObservations As Variant
+	Dim vOrigCorrectiveActions As Variant	
+	Dim vOrigRepeat As Variant
+	Dim vOrigCorrected As Variant
+	Dim vOrigSection As Variant
+	Dim vOrigRoom As Variant
+	Dim vOrigHazardRating As Variant
+	Dim vOrigLegalTxt As Variant
+	
+	Dim vTempObservations As Variant
+	Dim vTempCorrectiveActions As Variant
+	Dim vTempRepeat As Variant
+	Dim vTempCorrected As Variant
+	Dim vTempSection As Variant
+	Dim vTempRoom As Variant
+	Dim vTempHazardRating As Variant
+	Dim vTempLegalTxt As Variant
+	
+	Dim Key(1) As String
+	Dim vReturn As Variant
+	Dim strRoom As String
+	
+	Dim UseLglTxt As Boolean
+	Dim UseHazRat As Boolean
+	Dim UseRoom As Boolean
+	
+	Set ehsdb = InspDoc.Parentdatabase
+	Set ehsmsettings = ehsdb.Getprofiledocument("MasterSettings")
+	Set ehsgsettings = HSGetProfileDocument(ehsdb, "GlobalSettings")
+	
+	UseHazRat = gsettings.GetItemValue("UseHazardRating")(0) = "Yes"
+	UseLglTxt = ehsmsettings.GetItemValue("DisplayViolLegalText")(0) = "Yes"
+	UseRoom = CheckUseRoom( InspDoc )
+	
+	'MKIR-8W9RGV Configurable option to display violation legal text on the printed report only on first inspections, not followups
+	If UseLglTxt Then
+		If InspDoc.GetItemValue("CreatedFromInspID")(0) <> "" Then
+			If ehsgsettings.GetItemValue("UseLegalTextOnFollowup")(0) = "No" Then
+				UseLglTxt = False
+			End If
+		End If
+	End If
+	
+	Set GlobalSettings = HSGetProfileDocument(Db, "GlobalSettings")
+	Set View = ViolationsDB.GetView("ViolationsLookup")
+	
+	vOrigCode = InspDoc.ViolCode
+	vOrigDescription = InspDoc.ViolDescription
+	vOrigCriticalSet = InspDoc.ViolCriticalSet
+	vOrigObservations = InspDoc.ViolObservations
+	vOrigCorrectiveActions = InspDoc.ViolCorrectiveActions
+	vOrigCorrected = InspDoc.ViolCorrectedSet
+	vOrigRepeat = InspDoc.ViolRepeat
+	vOrigSection = InspDoc.ViolSection	
+	vOrigRoom = GetOptionalField( InspDoc, "ViolRoom", UseRoom, "" )
+	vOrigHazardRating = GetOptionalField( InspDoc, "ViolHzrdRating", UseHazRat, "" )
+	vOrigLegalTxt = GetOptionalField( InspDoc, "ViolLegalTxt", UseLglTxt, "" )
+	
+	If Not CheckSizes( vOrigCode, vOrigDescription, vOrigCriticalSet, vOrigObservations, vOrigCorrectiveActions, vOrigCorrected, vOrigRepeat, vOrigSection _
+	, vOrigRoom, UseRoom, vOrigHazardRating, UseHazRat,  vOrigLegalTxt, UseLglTxt, True ) Then
+		Exit Sub
+	End If	
+	
+	Redim vTempObservations(Ubound(vOrigCode)) As String
+	Redim vTempCorrectiveActions(Ubound(vOrigCode)) As String
+	Redim vTempRepeat(Ubound(vOrigCode)) As String
+	Redim vTempCorrected(Ubound(vOrigCode)) As String
+	Redim vTempSection(Ubound(vOrigCode)) As String
+	If UseRoom Then Redim vTempRoom (Ubound(vOrigCode)) As String
+	If UseHazRat Then Redim vTempHazardRating (Ubound(vOrigCode)) As String
+	If UseLglTxt Then Redim vTempLegalTxt (Ubound(vOrigCode)) As String
+	
+	Set CodeDoc = Nothing
+	Set Entrydoc = db.CreateDocument
+	k = 0
+	For i = Lbound(vOrigCode) To Ubound(vOrigCode)
+		If Lcase(vOrigCode(i)) = Lcase(Code) Then
+			If CodeDoc Is Nothing Then
+				If InspDoc.ViolationSubModule(0)="Vending" Or InspDoc.ViolationSubModule(0)="Tanning" Or _
+				InspDoc.ViolationSubModule(0)="Mammography" Or InspDoc.ViolationSubModule(0)="X-ray" Or InspDoc.ViolationSubModule(0)="Bed & Breakfast" Then
+					sModule = Trim( InspDoc.ViolationSubModule(0) )
+				Else
+					If InspDoc.HasItem( "ViolationModule" ) Then
+						sModule = Trim( InspDoc.ViolationModule(0) )
+					End If
+					If sModule = "" Then
+						sModule = InspDoc.Form(0)
+					End If
+				End If
+				
+				If Instr( sModule, "Critical" ) Then sModule = RemoveSubString( sModule, "Critical" )
+				If Right$( sModule, 4 ) = "Risk" Then sModule = RemoveSubString( sModule, "Risk" )
+				
+				Key(0) = sModule
+				Key(1) = vOrigCode(i)
+				Set CodeDoc = View.GetDocumentByKey( Key, True )
+				
+				If CodeDoc Is Nothing Then
+					Msgbox "Configuration details for " & Key(0) & " - " & Key(1) & " are no longer defined.", 48,  "Editing is not allowed."
+					Exit Sub
+				End If
+			End If
+			vTempObservations(k) = vOrigObservations(i)
+			vTempCorrectiveActions(k) = vOrigCorrectiveActions(i)
+			vTempRepeat(k) = vOrigRepeat(i)
+			vTempCorrected(k) = vOrigCorrected(i)
+			vTempSection(k) = vOrigSection(i)
+			
+			If UseHazRat Then vTempHazardRating(k) = vOrigHazardRating(i)
+			If UseLglTxt Then vTempLegalTxt(k) = vOrigLegalTxt(i)
+			
+			If Isarray(vOrigRoom) And UseRoom Then '
+				strRoom = vOrigRoom(i)
+				vTempRoom(k) = vOrigRoom(i)
+			End If
+			k = k + 1
+		End If
+	Next
+	
+	Redim Preserve vTempObservations(k-1) As String
+	Redim Preserve vTempCorrectiveActions(k-1) As String
+	Redim Preserve vTempRepeat(k-1) As String
+	Redim Preserve vTempCorrected(k-1) As String
+	Redim Preserve vTempSection(k-1) As String
+	If UseRoom Then Redim Preserve vTempRoom(k-1) As String
+	If UseHazRat Then Redim Preserve vTempHazardRating(k-1) As String
+	If UseLglTxt Then Redim Preserve vTempLegalTxt(k-1) As String
+	
+	Entrydoc.Form = "ReportEntry"
+	EntryDoc.Module = sModule
+	Entrydoc.Code = CodeDoc.Code
+	Entrydoc.Description = CodeDoc.Description
+	Entrydoc.CriticalOption = CodeDoc.Critical
+	EntryDoc.CriticalCheck = vOrigCriticalSet( Arraygetindex( vOrigCode, Code ) )
+	Entrydoc.Observations = vTempObservations
+	Entrydoc.CorrectiveActions = vTempCorrectiveActions
+	Entrydoc.CorrectedSet = vTempCorrected
+	Entrydoc.Section = vTempSection
+	Entrydoc.FoodCode2009Districts = ehsmsettings.FoodCode2009Districts
+	If UseRoom Then EntryDoc.Room = strRoom 'special
+	If UseHazRat Then Entrydoc.SectionHazardRating = vTempHazardRating
+	If UseLglTxt Then 
+		Entrydoc.LegalText = vTempLegalTxt
+		Entrydoc.Uselgltxt = "Yes"
+	End If 
+	Entrydoc.UseCorrectiveActions = GlobalSettings.dspCorrective	
+	Entrydoc.MoveCorrected = GlobalSettings.MoveCorrected
+	
+	InspDoc.ViolationSection = CodeDoc.SectionNumber
+	
+	' Open the edit dialog.
+	If EntryDoc.Module(0) = "HotelReport" Or EntryDoc.Module(0) = "Housing" Or EntryDoc.Module(0) = "X-ray" Or _
+	EntryDoc.Module(0) = "Tanning" Or EntryDoc.Module(0) = "Mammography" Or EntryDoc.Module(0) = "Bed & Breakfast" Then 'hotel and pool could be combined to use a single form with a hidewhenfor hte lable on the room field
+		vReturn = workspace.Dialogbox("HotelReportEntry",True,False,True,False,False,False,"Edit Violation",Entrydoc,True,True)	
+	Elseif InspDoc.Form(0) = "PoolReport" And InspDoc.ViolationSubModule(0) = "Waterslide" Then
+		vReturn = workspace.Dialogbox("PoolReportEntry",True,False,True,False,False,False,"Edit Violation",Entrydoc,True,True)	
+	Else
+		vReturn = workspace.Dialogbox("ReportEntry",True,False,True,False,False,False,"Edit Violation",Entrydoc,True,True)	
+	End If
+	
+	' Check return status of dialog.
+	If vReturn = True Then
+		If (Entrydoc.Status(0) = "Continue") Then
+			'Clicked "Continue", remove and add violation
+			Call RemoveViolation(Inspdoc,Code)
+			Call EntryDocToInsp(Entrydoc, InspDoc, vTempRepeat, db, InspView)
+		End If
+	End If
+	
+End Sub
+
+'++LotusScript Development Environment:2:2:BuildDisplayFieldWaterslide:1:8
+Sub BuildDisplayFieldWaterslide(Doc As NotesDocument, WhichOne As String)
+	
+	Const PADDING = "      "
+	
+	Dim ViolDesc List As String
+	Dim ViolCritical List As String
+	Dim vViolCodes As Variant
+	Dim vViolObservations As Variant
+	Dim vViolCorrections As Variant
+	Dim vViolRepeat As Variant
+	Dim vViolRoom As Variant
+	Dim vViolCorrected As Variant
+	
+	Dim Code As NotesItem
+	Dim Observation As NotesItem
+	Dim Description As NotesItem
+	Dim Critical As NotesItem
+	Dim Repeat As NotesItem
+	Dim Correction As NotesItem
+	Dim Room As NotesItem
+	Dim Corrected As NotesItem
+	
+	Dim i As Integer
+	Dim ctr As Integer
+	Dim iCount As Integer
+	Dim OutString() As String
+	Dim strTarget As String
+	
+	iCount = 0
+	Redim OutString(0)
+	
+	If WhichOne = "REMOVED" Then
+		strTarget = "Corrected"
+	Else
+		strTarget = ""
+	End If
+	
+	Set Code = Doc.GetFirstItem("Viol" & strTarget & "Code")
+	Set Observation = Doc.GetFirstItem("Viol" & strTarget & "Observations")
+	Set Description = Doc.getFirstItem("Viol" & strTarget & "Description")
+	Set Critical = Doc.GetFirstItem("Viol" & strTarget & "CriticalSet")
+	Set Repeat = Doc.GetFirstItem("Viol" & strTarget & "Repeat")
+	Set Correction = Doc.GetFirstItem("Viol" & strTarget & "CorrectiveActions")
+	Set Corrected = Doc.GetFirstItem("Viol" & strTarget & "CorrectedSet")
+	Set Room = Doc.getFirstItem("Viol" & strTarget & "Room")
+	
+	If Code Is Nothing Then Exit Sub
+	
+	' Check to see if the fields are not there
+	If Code Is Nothing Then
+		If WhichOne <> "REMOVED" Then
+			OutString(0) = "No violations entered."
+		End If
+	Else
+		If Not CheckSizes( Code.Values, Description.Values, Critical.Values, Observation.Values, Correction.Values, Corrected.Values _
+		, Repeat.Values,  Room.Values, Nothing, False, Nothing, False, Nothing, False, False ) Then
+			OutString(0) = "Caution! Violation array sizes are mismatched."
+			icount = iCount + 1
+		End If	
+		
+		vViolCodes = Code.Values
+		vViolObservations = Observation.Values
+		vViolCorrections = Correction.Values
+		vViolRepeat = Repeat.Values
+		vViolCorrected = Corrected.Values
+		If Not Room Is Nothing Then
+			vViolRoom = Room.Values
+		End If
+		
+		' Normalize array sizes to prevent run-time errors
+		If Ubound(vViolCodes) > Ubound(vViolCorrections) Then
+			Redim Preserve vViolCorrections(Ubound(vViolCodes))
+		End If
+		If Ubound(vViolCodes) > Ubound(vViolObservations) Then
+			Redim Preserve vViolObservations(Ubound(vViolCodes))
+		End If
+		If Ubound(vViolCodes) > Ubound(vViolRepeat) Then
+			Redim Preserve vViolRepeat(Ubound(vViolCodes))
+		End If
+		If Ubound(vViolCodes) > Ubound(vViolCorrected) Then
+			Redim Preserve vViolCorrected(Ubound(vViolCodes))
+		End If
+		If Not Room Is Nothing Then
+			If Ubound(vViolCodes) > Ubound(vViolRoom) Then
+				Redim Preserve vViolRoom(Ubound(vViolCodes))
+			End If
+		End If
+		
+		If vViolCodes(0) = "" Then
+			Redim OutString(0)
+			If WhichOne <> "REMOVED" Then
+				OutString(0) = "No violations entered."
+			End If
+		Else
+			'Generate arrays of violation descriptions and critical flags
+			For i = Lbound(vViolCodes) To Ubound(vViolCodes)
+				ViolDesc(vViolCodes(i)) = Description.Values(i)
+				ViolCritical(vViolCodes(i)) = Critical.Values(i)
+			Next
+			
+			'Generate Result
+			Forall desc In ViolDesc
+				
+				'Build primary description
+				iCount = iCount + 1
+				Redim Preserve OutString(iCount-1) As String
+				If iCount <> 1 Then
+					'Space
+					iCount = iCount + 1
+					Redim Preserve OutString(iCount-1) As String
+					OutString(iCount-1) = ""
+				End If
+				
+				OutString(iCount-1) = Listtag(desc) & " - " & desc 'removed truncation
+				
+				'Add critical tag if required
+				If Instr(ViolCritical(Listtag(desc)), "Critical") Then
+					iCount = iCount + 1
+					Redim Preserve OutString(iCount-1) As String
+					OutString(iCount-1) = PADDING & "This is a critical violation"
+				End If
+				
+				'Add room#, observations, corrections, repeats
+				For i = Lbound(vViolCodes) To Ubound(vViolCodes)
+					If vViolCodes(i) = Listtag(desc) Then
+						iCount = iCount + 3
+						Redim Preserve OutString(iCount-1) As String
+						If Not Room Is Nothing Then
+							If Ubound(vViolRoom) >= i Then
+								OutString(iCount-3) = PADDING & "Slide: " & vViolRoom(i) 
+							Else
+								OutString(iCount-3) = PADDING & "Slide: "
+							End If
+						Else
+							OutString(iCount-3) = PADDING & "Slide: "
+						End If
+						OutString(iCount-2) = PADDING & "Observation"
+						If Instr(vViolRepeat(i), "Repeat") Then OutString(iCount-2) = OutString(iCount-2) + " (REPEAT)"
+						If Instr(vViolCorrected(i), "Corrected") Then OutString(iCount-2) = OutString(iCount-2) + " (CORRECTED DURING INSPECTION)"
+						OutString(iCount-2) = OutString(iCount-2) + ": " + vViolObservations(i) 'removed truncation
+						If Trim(vViolCorrections(i)) <> "" Then
+							OutString(iCount-1) = PADDING & "Correction: " & vViolCorrections(i) 'removed truncation
+						End If
+					End If
+				Next
+			End Forall
+		End If
+	End If
+	If WhichOne = "REMOVED" Then
+		Call Doc.ReplaceItemValue("CorrectionDisplay",OutString)
+	Else
+		Call Doc.ReplaceItemValue("ViolationDisplay",OutString)
+	End If
+End Sub
+
+'++LotusScript Development Environment:2:2:RemoveSection:1:8
+Sub RemoveSection(Inspdoc As NotesDocument, Code As String)
+	
+	Dim i As Integer, k As Integer
+	Dim iObservationCount As Integer
+	Dim iRemoved As Integer
+	
+	Dim vOrigSecNum As Variant
+	Dim vOrigSecDesc As Variant
+	Dim vOrigSecGrp As Variant
+	Dim vOrigSecMod As Variant
+	Dim vOrigSecCat As Variant
+	Dim vOrigSecStat As Variant
+	
+	Dim vNewSecNumn As Variant
+	Dim vNewSecDesc As Variant
+	Dim vNewSecGrp As Variant
+	Dim vNewSecMod As Variant
+	Dim vNewSecCat As Variant	
+	Dim vNewSecStat As Variant
+	
+	vOrigSecNum = InspDoc.SectionNumber
+	vOrigSecDesc = InspDoc.SectionDescription
+	vOrigSecGrp = InspDoc.SectionGroup
+	vOrigSecMod = InspDoc.SectionModule
+	vOrigSecCat = InspDoc.SectionCategory
+	vOrigSecStat = InspDoc.SectionStatus
+	
+	If Not CheckSizes( vOrigSecNum, vOrigSecDesc, vOrigSecGrp, vOrigSecMod, vOrigSecCat, vOrigSecStat , vOrigSecStat , vOrigSecStat _
+	, Nothing, False, Nothing, False, Nothing, False, False ) Then
+		Msgbox "Section array sizes are mismatched. Continuing would corrupt the data. Please call HealthSpace for support.", 48, "Operation stopped"
+		Exit Sub
+	End If	
+	
+	iObservationCount = Ubound(vOrigSecNum) + 1
+	
+	Redim vNewSecNumn(iObservationCount-1) As String
+	Redim vNewSecDesc(iObservationCount-1) As String
+	Redim vNewSecGrp(iObservationCount-1) As String
+	Redim vNewSecMod(iObservationCount-1) As String
+	Redim vNewSecCat(iObservationCount-1) As String
+	Redim vNewSecStat(iObservationCount-1) As String 
+	
+	iRemoved = 0
+	i = 0
+	k = 0
+	
+	While i < iObservationCount
+		If Lcase(vOrigSecNum(i)) = Lcase(Code) Then
+			iRemoved = iRemoved + 1
+		Else
+			vNewSecNumn(k) = vOrigSecNum(i)
+			vNewSecDesc(k) = vOrigSecDesc(i)
+			vNewSecGrp(k) = vOrigSecGrp(i)
+			vNewSecMod(k) = vOrigSecMod(i)
+			vNewSecCat(k) = vOrigSecCat(i)
+			vNewSecStat(k) = vOrigSecStat(i)
+			k = k + 1
+		End If
+		i = i + 1
+	Wend
+	
+	If iObservationCount-1-iRemoved < 0 Then
+		Redim vNewSecNumn(0) As String
+		Redim vNewSecDesc(0) As String
+		Redim vNewSecGrp(0) As String
+		Redim vNewSecMod(0) As String
+		Redim vNewSecCat(0) As String
+		Redim vNewSecStat(0) As String
+	Else
+		Redim Preserve vNewSecNumn(iObservationCount-1-iRemoved)
+		Redim Preserve vNewSecDesc(iObservationCount-1-iRemoved)
+		Redim Preserve vNewSecGrp(iObservationCount-1-iRemoved)
+		Redim Preserve vNewSecMod(iObservationCount-1-iRemoved)
+		Redim Preserve vNewSecCat(iObservationCount-1-iRemoved)
+		Redim Preserve vNewSecStat(iObservationCount-1-iRemoved)
+	End If
+	
+	Call InspDoc.ReplaceItemValue("SectionNumber",vNewSecNumn)
+	Call InspDoc.ReplaceItemValue("SectionDescription",vNewSecDesc)
+	Call InspDoc.ReplaceItemValue("SectionGroup",vNewSecGrp)
+	Call InspDoc.ReplaceItemValue("SectionModule",vNewSecMod)
+	Call InspDoc.ReplaceItemValue("SectionCategory",vNewSecCat)
+	Call InspDoc.ReplaceItemValue("SectionStatus",vNewSecStat)
+	
+End Sub
+
+'++LotusScript Development Environment:2:2:RemoveViolation:1:8
+Sub RemoveViolation(Inspdoc As NotesDocument, Code As String)
+	
+	Dim i As Integer, k As Integer
+	Dim iObservationCount As Integer
+	Dim iRemoved As Integer
+	
+	Dim vOrigCode As Variant
+	Dim vOrigDescription As Variant
+	Dim vOrigCriticalSet As Variant
+	Dim vOrigObservations As Variant
+	Dim vOrigCorrectiveActions As Variant
+	Dim vOrigRepeat As Variant
+	Dim vOrigCorrected As Variant
+	Dim vOrigRoom As Variant
+	Dim vOrigSection As Variant 
+	Dim vOrigHazardRating As Variant
+	Dim vOrigLegalTxt As Variant
+	
+	Dim vNewCode As Variant
+	Dim vNewDescription As Variant
+	Dim vNewCriticalSet As Variant
+	Dim vNewObservations As Variant
+	Dim vNewCorrectiveActions As Variant
+	Dim vNewRepeat As Variant
+	Dim vNewCorrected As Variant
+	Dim vNewRoom As Variant
+	Dim vNewSection As Variant
+	Dim vNewHazardRating As Variant
+	Dim vNewLegalTxt As Variant
+	
+	Dim UseLglTxt As Boolean
+	Dim UseHazRat As Boolean
+	Dim UseRoom As Boolean
+	
+	Set ehsdb = InspDoc.Parentdatabase
+	Set ehsmsettings = ehsdb.Getprofiledocument("MasterSettings")
+	Set ehsgsettings = HSGetProfileDocument(ehsdb, "GlobalSettings")
+	
+	UseHazRat = gsettings.GetItemValue("UseHazardRating")(0) = "Yes"
+	UseLglTxt = ehsmsettings.GetItemValue("DisplayViolLegalText")(0) = "Yes"
+	UseRoom = CheckUseRoom( InspDoc )
+	
+	'MKIR-8W9RGV Configurable option to display violation legal text on the printed report only on first inspections, not followups
+	If UseLglTxt Then
+		If InspDoc.GetItemValue("CreatedFromInspID")(0) <> "" Then
+			If ehsgsettings.GetItemValue("UseLegalTextOnFollowup")(0) = "No" Then
+				UseLglTxt = False
+			End If
+		End If
+	End If
+	
+	vOrigCode = InspDoc.ViolCode
+	vOrigDescription = InspDoc.ViolDescription
+	vOrigCriticalSet = InspDoc.ViolCriticalSet
+	vOrigObservations = InspDoc.ViolObservations
+	vOrigCorrectiveActions = InspDoc.ViolCorrectiveActions
+	vOrigRepeat = InspDoc.ViolRepeat
+	vorigCorrected = InspDoc.ViolCorrectedSet
+	vOrigSection = InspDoc.ViolSection	
+	vOrigRoom = GetOptionalField( InspDoc, "ViolRoom", UseRoom, "" )
+	vOrigHazardRating = GetOptionalField( InspDoc, "ViolHzrdRating", UseHazRat, "" )
+	vOrigLegalTxt = GetOptionalField( InspDoc, "ViolLegalTxt", UseLglTxt, "" )
+	
+	If Not CheckSizes( vOrigCode, vOrigDescription, vOrigCriticalSet, vOrigObservations, vOrigCorrectiveActions, vOrigSection, vOrigCorrected, vOrigRepeat _
+	, vOrigRoom, UseRoom, vOrigHazardRating, UseHazRat,  vOrigLegalTxt, UseLglTxt, True ) Then
+		Exit Sub
+	End If	
+	
+	iObservationCount = Ubound(vOrigCode) + 1
+	
+	Redim vNewCode(iObservationCount-1) As String
+	Redim vNewDescription(iObservationCount-1) As String
+	Redim vNewCriticalSet(iObservationCount-1) As String
+	Redim vNewObservations(iObservationCount-1) As String
+	Redim vNewCorrectiveActions(iObservationCount-1) As String
+	Redim vNewRepeat(iObservationCount-1) As String
+	Redim vNewCorrected(iObservationCount-1) As String
+	Redim vNewSection( iObservationCount - 1 ) As String
+	If  UseRoom Then Redim vNewRoom(iObservationCount-1) As String	
+	If UseHazRat Then Redim vNewHazardRating(iObservationCount-1) As String
+	If UseLglTxt Then Redim vNewLegalTxt(iObservationCount-1) As String
+	
+	iRemoved = 0
+	i = 0
+	k = 0
+	While i < iObservationCount
+		If Lcase(vOrigCode(i)) = Lcase(Code) Then
+			iRemoved = iRemoved + 1
+		Else
+			vNewCode(k) = vOrigCode(i)
+			vNewDescription(k) = vOrigDescription(i)
+			vNewCriticalSet(k) = vOrigCriticalSet(i)
+			vNewObservations(k) = vOrigObservations(i)
+			vNewCorrectiveActions(k) = vOrigCorrectiveActions(i)
+			vNewRepeat(k) = vOrigRepeat(i)
+			vNewCorrected(k) = vOrigCorrected(i)
+			vNewSection(k) = vOrigSection(i)	
+			If UseRoom Then vNewRoom(k) = vOrigRoom(i)
+			If UseHazRat Then vNewHazardRating(k) = vOrigHazardRating(i)
+			If UseLglTxt Then vNewLegalTxt(k) = vOrigLegalTxt(i)
+			
+			k = k + 1
+		End If
+		i = i + 1
+	Wend
+	
+	If iObservationCount-1-iRemoved < 0 Then
+		Redim vNewCode(0) As String
+		Redim vNewDescription(0) As String
+		Redim vNewCriticalSet(0) As String
+		Redim vNewObservations(0) As String
+		Redim vNewCorrectiveActions(0) As String
+		Redim vNewRepeat(0) As String
+		Redim vNewCorrected(0) As String
+		Redim vNewSection(0) As String
+		If UseRoom Then Redim vNewRoom(0) As String
+		If UseHazRat Then Redim vNewHazardRating(0) As String
+		If UseLglTxt Then Redim vNewLegalTxt(0) As String
+	Else
+		Redim Preserve vNewCode(iObservationCount-1-iRemoved)
+		Redim Preserve vNewDescription(iObservationCount-1-iRemoved)
+		Redim Preserve vNewCriticalSet(iObservationCount-1-iRemoved)
+		Redim Preserve vNewObservations(iObservationCount-1-iRemoved)
+		Redim Preserve vNewCorrectiveActions(iObservationCount-1-iRemoved)
+		Redim Preserve vNewRepeat(iObservationCount-1-iRemoved)
+		Redim Preserve vNewCorrected(iObservationCount-1-iRemoved)
+		Redim Preserve vNewSection(iObservationCount-1-iRemoved)
+		If UseRoom Then Redim Preserve vNewRoom(iObservationCount-1-iRemoved)
+		If UseHazRat Then Redim Preserve vNewHazardRating(iObservationCount-1-iRemoved) 
+		If UseLglTxt Then Redim Preserve vNewLegalTxt(iObservationCount-1-iRemoved)
+	End If
+	Call InspDoc.ReplaceItemValue("ViolCode",vNewCode)
+	Call InspDoc.ReplaceItemValue("ViolDescription",vNewDescription)
+	Call InspDoc.ReplaceItemValue("ViolCriticalSet",vNewCriticalSet)
+	Call InspDoc.ReplaceItemValue("ViolObservations",vNewObservations)
+	Call InspDoc.ReplaceItemValue("ViolCorrectiveActions",vNewCorrectiveActions)
+	Call InspDoc.ReplaceItemValue("ViolRepeat",vNewRepeat)
+	Call InspDoc.ReplaceItemValue("ViolCorrectedSet",vNewCorrected)
+	Call InspDoc.ReplaceItemValue( "ViolSection", vNewSection )
+	If UseRoom Then Call InspDoc.ReplaceItemValue("ViolRoom",vNewRoom)	
+	If UseHazRat Then
+		Call InspDoc.ReplaceItemValue("ViolHzrdRating",vNewHazardRating)
+		InspDoc.ReplaceItemValue "TotHazardRating", SumAllHazardRatings(InspDoc)
+	End If
+	If UseLglTxt Then Call InspDoc.ReplaceItemValue("ViolLegalTxt",vNewLegalTxt)	
+	
+End Sub
+
+'++LotusScript Development Environment:2:1:GetOptionalField:1:8
+Private Function GetOptionalField( Inspection As NotesDocument, fldnam As String, InUse As Boolean, direction As String ) As Variant
+	
+	'when the field is in use and exits, this function serves no purpose, a simple vVariableName = Doc.Field would work fine
+	'however
+	'sometimes the field should not be used even though it exists, and sometimes in needs to be used when it didnt exist before. 
+	'both of these conditions will cause mismatched arrays
+	'to avoid errors, this function ensures that an array of appropriate size is returned without simply forcing it to the same size as code, which would simply mask errors
+	'  note that the BuildDisplay functions do force matching sizes, and that's OK because its display only, not data manipulation
+	
+	'note that Nothing is a valid return value, and that there is a difference between variant(0) = "" and variant(0) = " "
+	'	"" is used when no codes have been chosen yet, " " means a code has been chosen but the optional field is blank.
+	
+	'the return is defined as a Variant, and the function will return an array of strings 
+	'	(unless the field exists as an array of something else, such as numbers, which is unlikly but possible)
+	
+	'if the field does not exist, an array of empty strings will be returned, but no item will be created on the document. It is assumed that the code calling 
+	'	GetOptionalField will be updating the document with (some version of) the returned array. 
+	
+	'this function is to ensure the use of the same logic for any viol array variable that may not exist. specific fields may be excluded if they are for a specific module, such as 
+	'	room numbers on some types of lodging, or legal text and hazard rating which are controled by master settings. If an existing inspection doesnt have the field (because 
+	'	conditions were different when it was last edited) then it is ok to make a new array of the appropriate number of entries. if the optional field is disabled, no array is needed
+	
+	Dim codeitem As NotesItem
+	Dim fielditem As NotesItem
+	Dim strRetVal () As String
+	Dim i As Integer
+	
+	Set codeitem = Inspection.GetFirstItem( "Viol" & direction & "Code" )
+	If InUse Then 
+		If codeitem Is Nothing Then 
+nocodes:
+			'this will return a variant containing an array of one string with nothing in the string. i.e.  vVariableName(0) = "". ( "" NOT " " )
+			Redim strRetVal (0) As String
+			GetOptionalField = strRetVal
+		Else
+			If codeitem.Values(0) = "" Then  'no codes picked yet
+				Goto nocodes
+			Else
+				'this is the normal part of the function, wierd conditions (missing or empty code) have been accounted for by now
+				
+				Redim strRetVal (Ubound(codeitem.Values)) As String
+				Set fielditem = Inspection.GetFirstItem( fldnam )
+				If fielditem Is Nothing Then 'make fake data, empty
+makefake:
+					i = 0
+					Forall pudding In codeitem.Values
+						strRetVal(i) = " "
+						i = i + 1
+					End Forall
+					GetOptionalField = strRetVal
+				Elseif fielditem.Values(0) = "" Then 'field was not in use previously but now is needed
+					Goto makefake
+				Else
+			'		GetOptionalField = item.Values
+					'sometimes optional fields have "", " ", " " when they should have " ", " ", " ". "" should never be allowed, unless no codes have been chosen so we have to go through this patchup loop
+					i = 0
+					Forall jello In fielditem.Values
+						If jello = "" Then strRetVal(i) = " " Else strRetVal(i) = jello
+						i = i + 1
+					End Forall
+					GetOptionalField = strRetVal
+				End If 'item fieldname is nothing
+				
+			End If 'code = ""
+		End If 'code item nothing
+	Else 'optional field not in use 
+		' dont explicitly set it to nothing, just leave it to default, otherwise you get "Set must be used" errors
+		'Set GetOptionalField = Nothing		
+	End If
+	
+%REM previous version, may need for reference, obsolete after april 2010
+	If InUse And Inspection.GetItemValue( "Viol" & direction & "Code" )(0) <> "" Then 
+		Set item = Inspection.GetFirstItem( "Viol" & direction & "Code" )
+		If Not item Is Nothing Then 
+			Redim strRetVal (Ubound(item.Values)) As String
+			Set item = Inspection.GetFirstItem( fldnam )
+			If item Is Nothing Then 'make fake data, empty
+				i = 0
+				Forall pudding In Inspection.ViolCode
+					strRetVal(i) = " "
+					i = i + 1
+				End Forall
+				GetOptionalField = strRetVal
+			Else
+	'		GetOptionalField = item.Values
+			'sometimes optional fields have "", " ", " " when they should have " ", " ", " ". "" should never be allowed, unless no codes have been chosen so we have to go through this patchup loop
+				i = 0
+				Forall jello In item.Values
+					If jello = "" Then strRetVal(i) = " " Else strRetVal(i) = jello
+					i = i + 1
+				End Forall
+				GetOptionalField = strRetVal
+			End If 'item fieldname is nothing
+		Else
+			'this will return a variant containing an array of one string with nothing in the string. i.e.  vVariableName(0) = ""
+			Redim strRetVal (0) As String
+			GetOptionalField = strRetVal
+		End If 'item violcode is nothing
+	Else 'optional field not in use or no codes picked yet
+		' dont explicitly set it to nothing, just leave it to default, otherwise you get "Set must be used" errors
+		'Set GetOptionalField = Nothing
+	End If
+%END REM
+End Function
+
+'++LotusScript Development Environment:2:2:AddSection:1:8
+Sub AddSection(checkdoc As NotesDocument, inspdoc As NotesDocument, Status As String)
+	Dim sitem As NotesItem
+	'SectionModule
+	If inspdoc.HasItem("SectionModule") Then
+		Set sitem = inspdoc.GetFirstItem("SectionModule")
+	Else
+		Set sitem = inspdoc.ReplaceItemValue("SectionModule","")
+	End If
+	Call sitem.AppendToTextList(checkdoc.Module(0))
+	'SectionNumber
+	If inspdoc.HasItem("SectionNumber") Then
+		Set sitem = inspdoc.GetFirstItem("SectionNumber")
+	Else
+		Set sitem = inspdoc.ReplaceItemValue("SectionNumber","")
+	End If
+	Call sitem.AppendToTextList(checkdoc.SectionNumber(0))
+	'SectionGroup
+	If inspdoc.HasItem("SectionGroup") Then
+		Set sitem = inspdoc.GetFirstItem("SectionGroup")
+	Else
+		Set sitem = inspdoc.ReplaceItemValue("SectionGroup","")
+	End If
+	Call sitem.AppendToTextList(checkdoc.SectionGroup(0))
+	'SectionCategory
+	If inspdoc.HasItem("SectionCategory") Then
+		Set sitem = inspdoc.GetFirstItem("SectionCategory")
+	Else
+		Set sitem = inspdoc.ReplaceItemValue("SectionCategory","")
+	End If
+	Call sitem.AppendToTextList(checkdoc.Category(0))
+	'SectionDescription
+	If inspdoc.HasItem("SectionDescription") Then
+		Set sitem = inspdoc.GetFirstItem("SectionDescription")
+	Else
+		Set sitem = inspdoc.ReplaceItemValue("SectionDescription","")
+	End If
+	Call sitem.AppendToTextList(checkdoc.Description(0))
+	'SectionStatus
+	If inspdoc.HasItem("SectionStatus") Then
+		Set sitem = inspdoc.GetFirstItem("SectionStatus")
+	Else
+		Set sitem = inspdoc.ReplaceItemValue("SectionStatus","")
+	End If
+	Call sitem.AppendToTextList(Status)
+End Sub
+
+'++LotusScript Development Environment:2:2:AddViolation:5:8
+%REM
+	23-Aug-2012, Brett Parker, AMTS-8V2LSY Change to violation document design for Food module ONLY
+		Line 63, added "Entrydoc.FoodCode2009Districts = ehsmsettings.FoodCode2009Districts"
+%ENDREM
+Sub AddViolation(Code As NotesDocument, DB As NotesDatabase, Done As Variant, InspDoc As NotesDocument, InspView As NotesView )
+	
+	Dim Workspace As New NotesUIWorkspace
+	Dim Entrydoc As NotesDocument
+	Dim master As NotesDocument
+	Dim GlobalSettings As NotesDocument
+	Dim uiDoc As NotesUIDocument
+	Dim LglTxt As String
+	
+	On Error Goto notagain
+	
+	Set uiDoc = Workspace.CurrentDocument
+	Set Entrydoc = db.CreateDocument
+	Set master = HSGetProfileDocument(db, "MasterSettings")
+	Set GlobalSettings = HSGetProfileDocument(db, "GlobalSettings")
+	Set ehsdb = InspDoc.Parentdatabase
+	Set ehsmsettings = ehsdb.Getprofiledocument("MasterSettings")
+	Set ehsgsettings = HSGetProfileDocument(ehsdb, "GlobalSettings")
+	
+	'MKIR-8W9RGV Configurable option to display violation legal text on the printed report only on first inspections, not followups
+	LglTxt = ehsmsettings.GetItemValue("DisplayViolLegalText")(0)
+	If InspDoc.GetItemValue("CreatedFromInspID")(0) <> "" Then
+		If ehsgsettings.GetItemValue("UseLegalTextOnFollowup")(0) = "No" Then
+			LglTxt = "No"
+		End If
+	End If
+	
+	'first try these specific submodules, then module, then form
+	If InspDoc.ViolationSubModule(0) = "Waterslide" Then
+		EntryDoc.Module = "Waterslide"
+	Elseif InspDoc.ViolationSubModule(0) = "Vending" Then
+		EntryDoc.Module = "Vending"
+	Elseif InspDoc.ViolationSubModule(0) = "Bed & Breakfast" Then
+		EntryDoc.Module = "Bed & Breakfast"
+	Elseif InspDoc.ViolationSubModule(0) = "X-ray" Then
+		EntryDoc.Module = "X-ray"
+	Elseif InspDoc.ViolationSubModule(0) = "Tanning" Then
+		EntryDoc.Module = "Tanning"
+	Elseif InspDoc.ViolationSubModule(0) = "Mammography" Then
+		EntryDoc.Module = "Mammography"
+	Elseif InspDoc.HasItem("ViolationModule") Then
+		EntryDoc.Module = Trim( InspDoc.ViolationModule(0) )
+	Else
+		EntryDoc.Module = InspDoc.Form(0)
+	End If
+	
+	Entrydoc.Code = Code.Code
+	Entrydoc.Description = Code.Description
+	Entrydoc.CriticalOption = Code.Critical
+	Entrydoc.Form = "ReportEntry"
+	Entrydoc.Status = ""
+	Entrydoc.Uselgltxt = LglTxt
+	Entrydoc.UseCorrectiveActions = GlobalSettings.dspCorrective
+	Entrydoc.MoveCorrected = GlobalSettings.MoveCorrected
+	Entrydoc.FoodCode2009Districts = ehsmsettings.FoodCode2009Districts
+	
+	'If HazardRatingType = "Section" then the code does exactly what it did as it was first written 
+	'else it will get the hazard rating from the violation itself
+	If master.HazardRatingType(0) = "Section" Then
+		Entrydoc.SectionHazardRating = InspDoc.ViolationHazardRating(0)
+	Else
+		Entrydoc.SectionHazardRating = Code.HazardRating(0)	
+	End If
+	
+	
+	If EntryDoc.Module(0) = "HotelReport" Or EntryDoc.Module(0) = "Housing" Or EntryDoc.Module(0) = "X-ray" Or _
+	EntryDoc.Module(0) = "Tanning" Or EntryDoc.Module(0) = "Mammography" Or EntryDoc.Module(0) = "Bed & Breakfast" Then 'these forms could be combined with a hidewhen on the lable for room/slide number
+		Call workspace.Dialogbox("HotelReportEntry",True,False,True,False,False,False,"New Violation",Entrydoc,True,True)
+	Elseif EntryDoc.Module(0) = "Waterslide" Then
+		Call workspace.Dialogbox("PoolReportEntry",True,False,True,False,False,False,"New Violation",Entrydoc,True,True)
+	Else
+		Call workspace.Dialogbox("ReportEntry",True,False,True,False,False,False,"New Violation",Entrydoc,True,True)
+	End If	
+	
+	'Msgbox Entrydoc.Status(0)
+	
+	If (Entrydoc.Status(0) = "Continue") Then
+		'Clicked "Continue", add violation, and section
+		InspDoc.ViolationSection = Code.SectionNumber(0)
+		EntryDoc.Section = Code.SectionNumber(0)
+		Call EntryDocToInsp(Entrydoc, InspDoc, Nothing, db, InspView)
+	Else
+		Done = True
+	End If	
+	
+sianora:
+	Exit Sub
+	
+notagain:
+	Msgbox "there was a problem in AddViolation, at line" & Erl & " (" & Error & ")"
+	Resume sianora
+	
+End Sub
+
+'++LotusScript Development Environment:2:1:CheckAllViolationSizes:1:8
+Private Function CheckAllViolationSizes(InspDoc As NotesDocument, Max As Integer ) As Variant
+	
+	'this does not need to check the fields that we know are going to be small, like code, critical, repeat
+	
+	CheckAllViolationSizes = _
+	checkOneItemSize( InspDoc.GetFirstItem( "ViolDescription" ), Max ) _
+	And checkOneItemSize( InspDoc.GetFirstItem( "ViolObservations" ), Max ) _
+	And checkOneItemSize( InspDoc.GetFirstItem( "ViolCorrectiveActions" ), Max ) _ 
+	And checkOneItemSize( InspDoc.GetFirstItem( "ViolLegalText" ), Max ) 
+	
+End Function
+
+'++LotusScript Development Environment:2:2:RemoveObservation:1:8
+Sub RemoveObservation(strObs As String, doc As NotesDocument, WhichOne As String)
+	
+	'Items! Why? Everywhere else is variants. Oh well, it works
+	
+	Dim Code As NotesItem
+	Dim Description As NotesItem
+	Dim Observation As NotesItem
+	Dim Action As NotesItem
+	Dim Critical As NotesItem
+	Dim Corrected As NotesItem
+	Dim Repeat As NotesItem
+	Dim Section As NotesItem
+	Dim Room As NotesItem
+	Dim HazardRating As NotesItem
+	Dim LegalTxt As NotesItem
+	
+	Dim vCodeOut As Variant
+	Dim vDescriptionOut As Variant
+	Dim vObsOut As Variant
+	Dim vActionOut As Variant
+	Dim vCriticalOut As Variant
+	Dim vCorrectedOut As Variant
+	Dim vRepeatOut As Variant
+	Dim vSectionOut As Variant
+	Dim vRoomOut As Variant
+	Dim vHazardRatingOut As Variant
+	Dim vLegalTxtOut As Variant
+	
+	Dim x As Integer
+	
+	Dim UseLglTxt As Boolean
+	Dim UseHazRat As Boolean
+	Dim UseRoom As Boolean
+	
+	Set ehsdb = Doc.Parentdatabase
+	Set ehsmsettings = ehsdb.Getprofiledocument("MasterSettings")
+	Set ehsgsettings = HSGetProfileDocument(ehsdb, "GlobalSettings")
+	
+	UseHazRat = gsettings.GetItemValue("UseHazardRating")(0) = "Yes"
+	UseLglTxt = msettings.GetItemValue("DisplayViolLegalText")(0) = "Yes"
+	UseRoom = CheckUseRoom( doc )
+	
+	'MKIR-8W9RGV Configurable option to display violation legal text on the printed report only on first inspections, not followups
+	If UseLglTxt Then
+		If Doc.GetItemValue("CreatedFromInspID")(0) <> "" Then
+			If ehsgsettings.GetItemValue("UseLegalTextOnFollowup")(0) = "No" Then
+				UseLglTxt = False
+			End If
+		End If
+	End If
+	
+	' Assign the notes items depending on whether observation is moving from
+	' recorded to corrected or the other way.
+	If Ucase(WhichOne) = "MARKED" Then
+		Set Code = doc.GetFirstItem("ViolCode")
+		Set Description = doc.GetFirstItem("ViolDescription")
+		Set Observation = doc.GetFirstItem("ViolObservations")
+		Set Action = doc.GetFirstItem("ViolCorrectiveActions")
+		Set Critical = doc.GetFirstItem("ViolCriticalSet")
+		Set Corrected = doc.GetFirstItem("ViolCorrectedSet")
+		Set Repeat = doc.GetFirstItem("ViolRepeat")
+		Set Section = doc.GetFirstItem("ViolSection")
+		If UseRoom Then Set Room = doc.GetFirstItem("ViolRoom")
+		If UseHazRat Then Set HazardRating = doc.GetFirstItem( "ViolHzrdRating" )
+		If UseLglTxt Then Set LegalTxt = doc.GetFirstItem( "ViolLegalTxt" )
+	Else
+		Set Code = doc.GetFirstItem("ViolCorrectedCode")
+		Set Description = doc.GetFirstItem("ViolCorrectedDescription")
+		Set Observation = doc.GetFirstItem("ViolCorrectedObservations")
+		Set Action = doc.GetFirstItem("ViolCorrectedCorrectiveActions")
+		Set Critical = doc.GetFirstItem("ViolCorrectedCriticalSet")
+		Set Corrected = doc.GetFirstItem("ViolCorrectedCorrectedSet")
+		Set Repeat = doc.GetFirstItem("ViolCorrectedRepeat")
+		Set Section = doc.GetFirstItem("ViolCorrectedSection")
+		If UseRoom Then Set Room = doc.GetFirstItem("ViolCorrectedRoom") 
+		If UseHazRat Then Set HazardRating = doc.GetFirstItem( "ViolCorrectedHzrdRating" )
+		If UseLglTxt Then Set LegalTxt = doc.GetFirstItem( "ViolCorrectedLegalTxt" )
+	End If
+	
+	' Bail if no codes are in the current data set
+	If Code Is Nothing Then Exit Sub
+	If Code.Values(0) = "" Then Exit Sub
+	
+	'drat, if were not using one or more of the optional fields, its item will be nothing, and .Values will crash. Nothing is OK, but Nothing.Values is not
+	Dim tmproom As Variant, tmphaz As Variant, tmplgl As Variant
+	If Not Room Is Nothing Then tmproom = Room.Values
+	If Not HazardRating Is Nothing Then tmpHaz = HazardRating.Values
+	If Not LegalTxt Is Nothing Then tmpLgl = LegalTxt .Values
+	If Not CheckSizes( Code.values, Description.Values, Critical.Values, Observation.Values, Action.Values, Corrected.Values, Repeat.Values, Section.Values _
+	, tmproom, UseRoom, tmpHaz, UseHazRat,  tmpLgl, UseLglTxt, True ) Then 
+		Exit Sub
+	End If	
+	
+	' Copy over all content from source to target array except the one with 
+	' the matching observation.
+	For x = 0 To Ubound(Observation.Values)
+		If Observation.Values(x) <> strObs Then
+			If Isempty(vCodeOut) Then
+				Redim vCodeOut(0)
+				Redim vDescriptionOut(0)
+				Redim vObsOut(0)
+				Redim vActionOut(0)
+				Redim vCriticalOut(0)
+				Redim vCorrectedOut(0)
+				Redim vRepeatOut(0)
+				Redim vSectionOut(0)
+				Redim vRoomOut(0)
+				Redim vHazardRatingOut(0)
+				Redim vLegalTxtOut(0)
+				vCodeOut(0) = Code.Values(x)
+				vDescriptionOut(0) = Description.Values(x)
+				vObsOut(0) = Observation.Values(x)
+				vActionOut(0) = Action.Values(x)
+				vCriticalOut(0) = Critical.Values(x)
+				vCorrectedOut(0) = Corrected.Values(x)
+				vRepeatOut(0) = Repeat.Values(x)
+				vSectionOut(0) = Section.Values(x)
+				If UseRoom Then vRoomOut(0) = Room.Values(x)
+				If UseHazRat Then vHazardRatingOut(0) = HazardRating.Values(x)
+				If UseLglTxt Then vLegalTxtOut(0) = LegalTxt.Values(x)
+			Else
+				vCodeOut = Arrayappend(vCodeOut, Code.Values(x))
+				vDescriptionOut = Arrayappend(vDescriptionOut,Description.Values(x))
+				vObsOut = Arrayappend(vObsOut, Observation.Values(x))
+				vActionOut = Arrayappend(vActionOut, Action.Values(x))
+				vCriticalOut = Arrayappend(vCriticalOut, Critical.Values(x))
+				vCorrectedOut = Arrayappend(vCorrectedOut, Corrected.Values(x))	
+				vRepeatOut = Arrayappend(vRepeatOut, Repeat.Values(x))
+				vSectionOut = Arrayappend(vSectionOut, Section.Values(x))
+				If UseRoom Then vRoomOut = Arrayappend(vRoomOut, Room.Values(x))
+				If UseHazRat Then vHazardRatingOut = Arrayappend(vHazardRatingOut, HazardRating.Values(x))
+				If UseLglTxt Then vLegalTxtOut = Arrayappend(vLegalTxtOut, LegalTxt.Values(x))
+			End If
+		End If
+	Next
+	
+	Code.Values = vCodeOut
+	Description.Values = vDescriptionOut
+	Observation.Values = vObsOut
+	Action.Values = vActionOut
+	Critical.Values = vCriticalOut
+	Corrected.Values = vCorrectedOut
+	Repeat.Values = vRepeatOut
+	Section.Values = vSectionOut
+	If UseRoom Then Room.Values = vRoomOut
+	If UseHazRat Then HazardRating.Values = vHazardRatingOut
+	If UseLglTxt Then LegalTxt.Values = vLegalTxtOut
+	
+End Sub
+
+'++LotusScript Development Environment:2:1:xxGetOptionalItem:1:8
+Private Function xxGetOptionalItem( Inspection As NotesDocument, fldnam As String, control As NotesItem ) As NotesItem
+	
+	'the return is defined as a NotesItem
+	'if the item does not exist, the function will create an array of empty strings and assign it to a new item of the requested name, and return that new item
+	'	This is a noticable difference from the sister function GetOptionalField that does NOT create an item on the document
+	
+	'this function is to ensure the use of the same logic for any viol array variable that may not exist. specific fields may be excluded if they are for a specific module, such as 
+	'	room numbers on some types of lodging, or legal text and hazard rating which are controled by master settings. If an existing inspection doesnt have the field (because 
+	'	conditions were different when it was last edited) then it is ok to make a new array of the appropriate number of entries. if the optional field is disabled, no array is needed
+	
+	Dim item As NotesItem
+	Dim strRetVal () As String
+	Dim i As Integer
+	
+	Redim strRetVal (Ubound(Control.Values)) As String
+	If Control.Values(0) <> "" Then
+		i = 0
+		Forall pudding In Control.Values
+			strRetVal(i) = " "
+			i = i + 1
+		End Forall
+	End If
+	Set item = Inspection.GetFirstItem( fldnam )
+	If item Is Nothing Then 'make fake data, empty
+		Set item = Inspection.ReplaceItemValue( fldnam, strRetVal )
+	Else
+		'sometimes optional fields have "", " ", " " when they should have " ", " ", " ". "" should never be allowed, so we have to go through this patchup loop
+		i = 0
+		Forall jello In item.Values
+			If jello = "" Then strRetVal(i) = " " Else strRetVal(i) = jello
+			i = i + 1
+		End Forall
+		Set item = Inspection.ReplaceItemValue( fldnam, strRetVal )
+	End If
+	
+	Set xxGetOptionalItem = item
+	
+End Function
+
+'++LotusScript Development Environment:2:1:SumAllHazardRatings:1:8
+Function SumAllHazardRatings(InspDoc As NotesDocument) As Integer
+	
+	Dim session As New NotesSession
+	Dim db As NotesDatabase
+	Dim i As Integer
+	Dim SectionList List As String
+	Dim CodeList List As String
+	Dim TotHazardRating As Integer
+	Dim master As NotesDocument
+	Dim smsg As String
+	
+	On Error Goto err_summing
+	
+	Set db = session.CurrentDatabase
+	Set master = HSGetProfileDocument(db, "MasterSettings")
+	TotHazardRating = 0
+	
+	'if evaluating the HazardRating based on the Section level  
+	'treat all violations in one section as one and only add to the Hazard Rating once per Section
+	'each Section SHOULD have only one Hazard Value
+	
+	If InspDoc.HazRatingType(0) = "Section" Then
+		If Isarray( InspDoc.ViolSection) Then
+			For i = 0 To Ubound(InspDoc.ViolSection)
+				If Not InspDoc.ViolSection(i) = " " Then
+					If Ubound(InspDoc.ViolHzrdRating) < i Then
+						'for some reason ViolHzrdRating does not have the same amount of elements...
+						'We'll have to assume that this section does not have points associated with it
+						SectionList(InspDoc.ViolSection(i)) = 0
+					Else
+						If InspDoc.ViolHzrdRating(i) = "" Or InspDoc.ViolHzrdRating(i) = " " Then
+							SectionList(InspDoc.ViolSection(i)) = 0
+						Else
+							SectionList(InspDoc.ViolSection(i)) = InspDoc.ViolHzrdRating(i)
+						End If
+					End If
+				End If
+			Next
+			Forall Section In SectionList
+				If Section <> "" Then
+					TotHazardRating = TotHazardRating + Cint(Section)
+				End If
+			End Forall
+		End If
+	End If
+	
+	'if evaluating the HazardRating based on the Code level  
+	'treat all observations of one code as one and only add to the Hazard Rating once per Code
+	'each Code SHOULD have only one Hazard Value
+	If InspDoc.HazRatingType(0) = "Code" Then
+		If Isarray( InspDoc.ViolCode) Then
+			For i = 0 To Ubound(InspDoc.ViolCode)
+				If Not InspDoc.ViolCode(i) = " " Then
+					If Ubound(InspDoc.ViolHzrdRating) < i Then
+						'for some reason ViolHzrdRating does not have the same amount of elements...
+						'We'll have to assume that this code does not have points associated with it
+						CodeList(InspDoc.ViolCode(i)) = 0
+					Else
+						If InspDoc.ViolHzrdRating(i) = "" Or InspDoc.ViolHzrdRating(i) = " " Then
+							CodeList(InspDoc.ViolCode(i)) = 0
+						Else
+							CodeList(InspDoc.ViolCode(i)) = InspDoc.ViolHzrdRating(i)
+						End If
+					End If
+				End If
+			Next
+			Forall Code In CodeList
+				If Code <> "" Then
+					TotHazardRating = TotHazardRating + Cint(Code)
+				End If
+			End Forall
+		End If
+	Elseif InspDoc.HazRatingType(0) = "" Then
+		If Isarray( InspDoc.ViolCode) Then
+			For i = 0 To Ubound(InspDoc.ViolCode)
+				If Not InspDoc.ViolCode(i) = " " Then
+					If Ubound(InspDoc.ViolHzrdRating) < i Then
+						'for some reason ViolHzrdRating does not have the same amount of elements...
+						'We'll have to assume that this code does not have points associated with it
+						CodeList(InspDoc.ViolCode(i)) = 0
+					Else
+						If InspDoc.ViolHzrdRating(i) = "" Or InspDoc.ViolHzrdRating(i) = " " Then
+							CodeList(InspDoc.ViolCode(i)) = 0
+						Else
+							CodeList(InspDoc.ViolCode(i)) = InspDoc.ViolHzrdRating(i)
+						End If
+					End If
+				End If
+			Next
+			Forall Code In CodeList
+				If Code <> "" Then
+					TotHazardRating = TotHazardRating + Cint(Code)
+				End If
+			End Forall
+		End If
+	End If
+	
+	'if evaluating the HazardRating based on the Observation level  
+	'treat all observations as seperate entities and add to the Hazard Rating once per Observation
+	If InspDoc.HazRatingType(0) = "Observation" Then
+		If Isarray( InspDoc.ViolHzrdRating ) Then
+			For i = 0 To Ubound(InspDoc.ViolHzrdRating)
+				If InspDoc.ViolHzrdRating(i) <> "" Then
+					If InspDoc.ViolHzrdRating(i) <> " " Then
+						TotHazardRating = TotHazardRating + Cint(InspDoc.ViolHzrdRating(i))
+					End If
+				End If
+			Next
+		End If
+	End If
+	
+	'Code added to fix scoring bug for WA (NFAR-8GJJDQ)
+	If DBDesign <> "WA" And DBDesign <> "WA Violations" Then
+		TotHazardRating = 100 - TotHazardRating
+	End If
+	
+	Goto here
+	
+err_summing:
+	On Error Resume Next
+	Resume here
+	'quietly use what we got so far, probably Zero
+here:
+	SumAllHazardRatings = TotHazardRating
+End Function
+
+'++LotusScript Development Environment:2:2:AddActionTaken:1:8
+Sub AddActionTaken (UIDoc As NotesUIDocument, intViolArray As Integer)
+	Dim Workspace As New NotesUIWorkspace
+	Dim Session As New NotesSession
+	Dim Db As NotesDatabase
+	Dim ActionTakenDoc As NotesDocument
+	Dim Doc As NotesDocument
+	Dim varCorrectiveActions As Variant
+	Dim strArray() As String
+	Dim intCount As Integer
+	
+	Set Db = Session.CurrentDatabase
+	Set Doc = UIDoc.Document
+	Set ActionTakenDoc = Db.CreateDocument
+	
+	With ActionTakenDoc
+		.Form = "ReportActionTaken"
+		.Status = ""
+	End With
+	
+	
+	If Doc.HasItem("Code") Then 'Mark as Corrected
+		
+		With ActionTakenDoc
+			.CriticalOption = Doc.CriticalOption
+			.Code = Doc.Code
+			.Description = Doc.Description
+			.Module = Doc.Module
+			.CriticalSet = Doc.CriticalSet
+			.Observations = Doc.Observations(intViolArray)
+			.CorrectiveActions = Doc.CorrectiveActions(intViolArray)
+		End With
+		varCorrectiveActions = Doc.CorrectiveActions
+	Else
+		'first try these specific submodules, then module, then form
+		If Doc.ViolationSubModule(0) = "Waterslide" Then
+			ActionTakenDoc.Module = "Waterslide"
+		Elseif Doc.ViolationSubModule(0) = "Vending" Then
+			ActionTakenDoc.Module = "Vending"
+		Elseif Doc.ViolationSubModule(0) = "Bed & Breakfast" Then
+			ActionTakenDoc.Module = "Bed & Breakfast"
+		Elseif Doc.ViolationSubModule(0) = "X-ray" Then
+			ActionTakenDoc.Module = "X-ray"
+		Elseif Doc.ViolationSubModule(0) = "Tanning" Then
+			ActionTakenDoc.Module = "Tanning"
+		Elseif Doc.ViolationSubModule(0) = "Mammography" Then
+			ActionTakenDoc.Module = "Mammography"
+		Elseif Doc.HasItem("ViolationModule") Then
+			ActionTakenDoc.Module = Trim( Doc.ViolationModule(0) )
+		Else
+			ActionTakenDoc.Module = Doc.Form(0)
+		End If
+		
+		With ActionTakenDoc
+			If Doc.ViolCriticalSet(intViolArray)="Critical" Then .CriticalOption = "Yes"
+			.Code = Doc.ViolCode(intViolArray)
+			.Description = Doc.ViolDescription(intViolArray)
+			.CriticalSet = Doc.ViolCriticalSet(intViolArray)
+			.Observations = Doc.ViolObservations(intViolArray)
+			.CorrectiveActions = Doc.ViolCorrectiveActions(intViolArray)
+		End With
+		varCorrectiveActions = Doc.ViolCorrectiveActions
+	End If
+	
+	Call Workspace.Dialogbox("ReportActionTaken",True,False,True,False,False,False,"Add Action Taken",ActionTakenDoc,True,True)
+	
+	If (ActionTakenDoc.Status(0) = "Continue") Then
+		'Clicked "Continue", add action taken to corrective actions
+		For intCount= 0 To Ubound(varCorrectiveActions)
+			Redim Preserve strArray(intCount)
+			If intCount = intViolArray Then
+				strArray(intCount) = varCorrectiveActions(intCount) & "   Action Taken: " & ActionTakenDoc.ActionTaken(0)
+			Else
+				strArray(intCount) = varCorrectiveActions(intCount)
+			End If
+		Next
+		If Doc.HasItem("Code") Then
+			Call Doc.ReplaceItemValue("CorrectiveActions", strArray)
+		Else
+			Call Doc.ReplaceItemValue("ViolCorrectiveActions", strArray)
+		End If
+		Call Doc.ReplaceItemValue("ActionTaken", "Yes")
+	Else
+		Call Doc.ReplaceItemValue("ActionTaken", "No")
+	End If
+End Sub
+
+'++LotusScript Development Environment:2:1:CheckOneItemSize:1:8
+Private Function CheckOneItemSize( Item As NotesItem, Max As Integer ) As Variant
+	If Item Is Nothing Then
+		CheckOneItemSize = True
+	Else
+		CheckOneItemSize = Item.ValueLength < Max
+	End If
+End Function
+
+'++LotusScript Development Environment:2:2:SelectCorrectedDialog:1:8
+Sub SelectCorrectedDialog(uidoc As NotesUIDocument, direction As String)
+	
+	Dim doc As NotesDocument
+	Dim Workspace As New NotesUIWorkspace
+	Dim sSelection As Variant
+	Dim strArrChoices() As String
+	Dim strArrViolations() As String
+	Dim x As Variant	
+	Dim z As Variant
+	Dim Criticals() As Integer
+	Dim sMsg As String
+	
+	Dim vToCode As Variant
+	Dim vToDescription As Variant
+	Dim vToObservations As Variant
+	Dim vToCorrectiveActions As Variant
+	Dim vToCriticalSet As Variant
+	Dim vToRepeat As Variant
+	Dim vToCorrected As Variant
+	Dim vToSection As Variant 
+	Dim vToRoom As Variant
+	Dim vToHazard As Variant
+	Dim vToLegalTxt As Variant
+	
+	Dim vFromCode As Variant
+	Dim vFromDescription As Variant
+	Dim vFromObservations As Variant
+	Dim vFromCorrectiveActions As Variant
+	Dim vFromCriticalSet As Variant
+	Dim vFromRepeat As Variant
+	Dim vFromCorrected As Variant
+	Dim vFromSection As Variant 
+	Dim vFromRoom As Variant
+	Dim vFromHazard As Variant
+	Dim vFromLegalTxt As Variant
+	
+	Dim strTemp As String
+	Dim strToDirection As String
+	Dim strFromDirection As String
+	Dim bEmpty As Boolean
+	
+	Dim UseLglTxt As Boolean
+	Dim UseHazRat As Boolean
+	Dim UseRoom As Boolean
+	Dim CorrectNonCritical As Boolean
+	
+	On Error Goto err_summing
+	
+	Set doc = uidoc.document
+	Set ehsdb = Doc.Parentdatabase
+	Set ehsmsettings = ehsdb.Getprofiledocument("MasterSettings")
+	Set ehsgsettings = HSGetProfileDocument(ehsdb, "GlobalSettings")
+	
+	UseHazRat = gsettings.GetItemValue("UseHazardRating")(0) = "Yes"
+	UseLglTxt = ehsmsettings.GetItemValue("DisplayViolLegalText")(0) = "Yes"
+	UseRoom = CheckUseRoom( Doc )
+	CorrectNonCritical = ViolationMasterSetting("CanCorrectNonCritical") = "Yes"
+	
+	'MKIR-8W9RGV Configurable option to display violation legal text on the printed report only on first inspections, not followups
+	If UseLglTxt Then
+		If uiDoc.Document.GetItemValue("CreatedFromInspID")(0) <> "" Then
+			If ehsgsettings.GetItemValue("UseLegalTextOnFollowup")(0) = "No" Then
+				UseLglTxt = False
+			End If
+		End If
+	End If
+	
+	' Build a list of removed observations that are currently on the inspection
+	x = 0
+	z = 0
+	If direction = "REMOVED" Then
+		If doc.HasItem("violCorrectedObservations") Then
+			Redim strArrChoices(Ubound(doc.ViolCorrectedObservations))
+			Redim strArrViolations(Ubound(strArrChoices))
+			Redim Criticals(Ubound(strArrChoices))
+			Forall v In doc.ViolCorrectedObservations
+				strTemp = doc.ViolCorrectedCode(x)
+				strTemp = strTemp & " - " & Left(v,200)
+				strTemp = ReplaceSubString(strTemp, Chr(10), " ")
+				strTemp = ReplaceSubString(strTemp, Chr(13), " ")
+				strTemp = ReplaceSubString(strTemp, ";", ":")
+				strArrChoices(x) = strTemp
+				strArrViolations(x) = strTemp
+				Criticals(x) = x
+				x = x + 1
+			End Forall
+		End If
+		strToDirection = ""
+		strFromDirection = "Corrected"
+	Else
+		If doc.HasItem("violObservations") Then
+			Forall v In doc.ViolObservations
+				If (CorrectNonCritical) Then
+					z = z + 1
+				Else
+					If (doc.ViolCriticalSet(x) = "Critical") Then
+						z = z + 1
+					End If
+				End If
+				x = x + 1
+			End Forall
+			
+			If (z <> 0) Then
+				Redim strArrChoices(z-1)
+				Redim strArrViolations(x-1)
+				Redim Criticals(z-1)
+			End If
+			
+			x = 0
+			z = 0
+			Forall v In doc.ViolObservations
+				'cannot mark a non-critical violation as corrected 
+				If (CorrectNonCritical) Then
+					strTemp = doc.ViolCode(x)
+					strTemp = strTemp & " - " & Left(v,200) 
+					strTemp = ReplaceSubString(strTemp, Chr(10), " ")
+					strTemp = ReplaceSubString(strTemp, Chr(13), " ")
+					strTemp = ReplaceSubString(strTemp, ";", ":")
+					strArrChoices(z) = strTemp
+					strArrViolations(x) = strTemp
+					Criticals(z) = x
+					z = z + 1
+				Else
+					If (doc.ViolCriticalSet( x) = "Critical") Then
+						strTemp = doc.ViolCode(x)
+						strTemp = strTemp & " - " & Left(v,200) 
+						strTemp = ReplaceSubString(strTemp, Chr(10), " ")
+						strTemp = ReplaceSubString(strTemp, Chr(13), " ")
+						strTemp = ReplaceSubString(strTemp, ";", ":")
+						strArrChoices(z) = strTemp
+						Criticals(z) = x
+						z = z + 1
+					End If
+					If x <> 0 Then
+						strTemp = doc.ViolCode(x)
+						strTemp = strTemp & " - " & Left(v,200) 
+						strTemp = ReplaceSubString(strTemp, Chr(10), " ")
+						strTemp = ReplaceSubString(strTemp, Chr(13), " ")
+						strTemp = ReplaceSubString(strTemp, ";", ":")
+						strArrViolations(x) = strTemp
+					Else
+						Messagebox "There are no critical violations to correct. Correct Non-Critical Violations is set to ""No"" in Master Settings", 48, "Enter corrections"
+					End If
+				End If
+				x = x + 1
+			End Forall
+		End If
+		strToDirection = "Corrected"
+		strFromDirection = ""
+	End If
+	
+	' Check if any observations were found and abort if there are none
+	If x < 1 Then
+		If direction = "REMOVED" Then
+			Messagebox "There are no corrected violations to remove.", 48, "Enter corrections"
+		Else
+			Messagebox "There are no violations to remove.", 48, "Enter corrections"
+		End If
+		Exit Sub
+	End If
+	
+	vToCode = doc.GetItemValue( "Viol" & strToDirection & "Code" )
+	vFromCode = doc.GetItemValue( "Viol" & strFromDirection & "Code" )
+	vToDescription = doc.GetItemValue( "Viol" & strToDirection & "Description" )
+	vFromDescription = doc.GetItemValue( "Viol" & strFromDirection & "Description" )
+	vToObservations = doc.GetItemValue( "Viol" & strToDirection & "Observations" )
+	vFromObservations = doc.GetItemValue( "Viol" & strFromDirection & "Observations" )
+	vToCorrectiveActions = doc.GetItemValue( "Viol" & strToDirection & "CorrectiveActions" )
+	vFromCorrectiveActions = doc.GetItemValue( "Viol" & strFromDirection & "CorrectiveActions" )
+	vToCriticalSet = doc.GetItemValue( "Viol" & strToDirection & "CriticalSet" )
+	vFromCriticalSet = doc.GetItemValue( "Viol" & strFromDirection & "CriticalSet" )
+	vToRepeat = doc.GetItemValue( "Viol" & strToDirection & "Repeat" )
+	vFromRepeat = doc.GetItemValue( "Viol" & strFromDirection & "Repeat" )
+	vToCorrected = doc.GetItemValue( "Viol" & strToDirection & "CorrectedSet" )
+	vFromCorrected = doc.GetItemValue( "Viol" & strFromDirection & "CorrectedSet" )
+	vToSection = doc.GetItemValue( "Viol" & strToDirection & "Section" )
+	vFromSection = doc.GetItemValue( "Viol" & strFromDirection & "Section" )
+	
+	vToRoom = GetOptionalField( doc, "Viol" & strToDirection & "Room", UseRoom, strToDirection )
+	vFromRoom = GetOptionalField( doc, "Viol" & strFromDirection & "Room", UseRoom, strFromDirection )	
+	vToHazard = GetOptionalField( doc, "Viol" & strToDirection & "HzrdRating", UseHazRat, strToDirection )
+	vFromHazard = GetOptionalField( doc, "Viol" & strFromDirection & "HzrdRating", UseHazRat, strFromDirection )	
+	vToLegalTxt = GetOptionalField( doc, "Viol" & strToDirection & "LegalTxt", UseLglTxt, strToDirection )
+	vFromLegalTxt = GetOptionalField( doc, "Viol" & strFromDirection & "LegalTxt", UseLglTxt, strFromDirection )
+	
+	'make sure that all the lists  we got are the same size
+	If Not CheckSizes( vToCode, vToDescription, vToCriticalSet, vToObservations, vToCorrectiveActions, vToCorrected, vToRepeat, vToSection _
+	, vToRoom, UseRoom, vToHazard, UseHazRat,  vToLegalTxt, UseLglTxt, True ) Then
+		If doc.ParentDatabase.CurrentAccessLevel > 4 Then
+			Msgbox "(ps That was loading target variables, " & strToDirection & ")"
+		End If 'developer
+		Exit Sub
+	End If
+	If Not CheckSizes( vFromCode, vFromDescription, vFromCriticalSet, vFromObservations, vFromCorrectiveActions, vFromCorrected, vFromRepeat, vFromSection _
+	, vFromRoom, UseRoom, vFromHazard, UseHazRat,  vFromLegalTxt, UseLglTxt, True ) Then
+		If doc.ParentDatabase.CurrentAccessLevel > 4 Then
+			Msgbox "(ps That was loading source variables, " & strFromDirection & ")"
+		End If 'developer
+		Exit Sub
+	End If	
+	
+	' Give the user a list of observations to choose the ones they want to correct
+	If Direction = "REMOVED" Then
+		sSelection = Workspace.Prompt( PROMPT_OKCANCELLISTMULT, "Corrected Observation(s)", "Select the Observation(s) you want to un-mark as corrected.", "", strArrChoices)
+	Else
+		sSelection = Workspace.Prompt( PROMPT_OKCANCELLISTMULT, "Observation(s)", "Select the Observation(s) you want to mark as corrected.", "", strArrChoices)
+	End If
+	
+	' Process the user selections
+	If Isarray(sSelection) Then
+		Forall sel In sSelection
+			
+			' Find the postion of this selected item in the source array
+			' and copy it over to the corrected arrays
+			x = Arraygetindex(strArrViolations, sel)
+			
+			If Not Isnull(x) Then
+				
+				'Action Taken only required for Michigan (AMTS-8E4TWV)
+				If DBDesign = "Michigan" Or DBDesign = "Michigan Violations" Then
+					If Direction = "MARKED" Then
+						Call AddActionTaken(UIDoc, Int(x))
+						vFromCorrectiveActions = doc.GetItemValue( "Viol" & strFromDirection & "CorrectiveActions" )
+					End If
+				End If
+				
+				If vToCode(0) = "" Then 'just slam it in, there are no elements to add to
+					vToCode(0) = vFromCode(x) 
+					vToDescription(0) = vFromDescription(x) 
+					vToObservations(0) = vFromObservations(x) 
+					vToCorrectiveActions(0) = vFromCorrectiveActions(x) 
+					vToCriticalSet(0) = vFromCriticalSet(x) 
+					If Direction = "MARKED" Then
+						vToRepeat(0) = ""
+					Else
+						vToRepeat(0) = vFromRepeat(x)
+					End If
+					vToCorrected(0) = vFromCorrected(x) 
+					vToSection(0) = vFromSection(x) 	
+					If UseRoom Then vToRoom(0) = vFromRoom(x) 
+					If UseHazRat Then vToHazard(0) = vFromHazard(x) 
+					If UseLglTxt Then vToLegalTxt(0) = vFromLegalTxt(x) 
+				Else
+					vToCode = Arrayappend( vToCode, vFromCode(x) )
+					vToDescription = Arrayappend( vToDescription, vFromDescription(x) )
+					vToObservations = Arrayappend( vToObservations, vFromObservations(x) )
+					vToCorrectiveActions = Arrayappend( vToCorrectiveActions, vFromCorrectiveActions(x) )
+					vToCriticalSet = Arrayappend( vToCriticalSet, vFromCriticalSet(x) )
+					If Direction = "MARKED" Then
+						vToRepeat = Arrayappend( vToRepeat, "")
+					Else
+						vToRepeat = Arrayappend( vToRepeat, vFromRepeat(x) )
+					End If
+					vToCorrected = Arrayappend( vToCorrected, vFromCorrected(x) )
+					vToSection = Arrayappend( vToSection, vFromSection(x) )				
+					If UseRoom Then vToRoom = Arrayappend( vToRoom, vFromRoom(x) )
+					If UseHazRat Then vToHazard = Arrayappend( vToHazard, vFromHazard(x) )
+					If UseLglTxt Then vToLegalTxt = Arrayappend( vToLegalTxt, vFromLegalTxt(x) )
+				End If
+				
+				If Ubound( vFromCode ) = 0 Then 'there was only one left, just wipe it all
+					Redim  vFromCode (0) 
+					Redim  vFromDescription (0)
+					Redim  vFromObservations (0)
+					Redim  vFromCorrectiveActions (0)
+					Redim  vFromCriticalSet (0)
+					Redim  vFromRepeat (0)
+					Redim  vFromCorrected (0)
+					Redim  vFromSection (0)
+					Redim  vFromRoom (0)
+					Redim  vFromHazard (0)
+					Redim  vFromLegalTxt (0)
+				Else
+					'remove the selected element, the one we just moved, by copying over that spot (x) with the last element in the array and shrinking the array by one
+					'this changes the order, but they all change the same, so it works
+					vFromCode(Criticals(x)) = vFromCode(Ubound( vFromCode ))
+					vFromDescription(Criticals(x)) = vFromDescription(Ubound( vFromCode ))
+					vFromObservations(Criticals(x)) = vFromObservations(Ubound( vFromCode ))
+					vFromCorrectiveActions(Criticals(x)) = vFromCorrectiveActions(Ubound( vFromCode ))
+					vFromCriticalSet(Criticals(x)) = vFromCriticalSet(Ubound( vFromCode ))
+					vFromRepeat(Criticals(x)) = vFromRepeat(Ubound( vFromCode ))
+					vFromCorrected(Criticals(x)) = vFromCorrected(Ubound( vFromCode ))
+					vFromSection(Criticals(x)) = vFromSection(Ubound( vFromCode ))
+					If UseRoom Then vFromRoom(Criticals(x)) = vFromRoom(Ubound( vFromCode ))
+					If UseHazRat Then vFromHazard(Criticals(x)) = vFromHazard(Ubound( vFromCode ))
+					If UseLglTxt Then vFromLegalTxt(Criticals(x)) = vFromLegalTxt(Ubound( vFromCode ))
+					Redim Preserve vFromCode (Ubound( vFromCode ) - 1)
+					Redim Preserve vFromDescription (Ubound( vFromCode ))
+					Redim Preserve vFromObservations (Ubound( vFromCode ))
+					Redim Preserve vFromCorrectiveActions (Ubound( vFromCode ))
+					Redim Preserve vFromCriticalSet (Ubound( vFromCode ))
+					Redim Preserve vFromRepeat (Ubound( vFromCode ))
+					Redim Preserve vFromCorrected (Ubound( vFromCode ))
+					Redim Preserve vFromSection (Ubound( vFromCode ))
+					If UseRoom Then Redim Preserve vFromRoom (Ubound( vFromCode ))
+					If UseHazRat Then Redim Preserve vFromHazard (Ubound( vFromCode ))
+					If UseLglTxt Then Redim Preserve vFromLegalTxt (Ubound( vFromCode ))
+					'and remove it from the choices
+					strArrChoices(x) =strArrChoices(Ubound( strArrChoices ))
+					strArrViolations(x) =strArrViolations(Ubound( strArrViolations ))
+					Redim Preserve strArrChoices (Ubound( vFromCode ))
+					Redim Preserve strArrViolations (Ubound( vFromCode ))
+					If (Ubound(Criticals)) > 0 Then
+						Redim Preserve Criticals(Ubound(Criticals)-1)
+						If (Criticals(Ubound(Criticals)) <> (Ubound(vFromCode))) Then
+							Dim i As Integer
+							If Not Ubound(Criticals) = 0 Then'following line was erroring if ubound(criticals) = 0. That's if there were 2 criticals, the last one was selected and only 1 at criticals(0) was left.
+								For i = (Criticals(x)) To (Ubound(Criticals))
+									Criticals(i) = Criticals(i) + 1
+								Next
+							End If
+						End If
+					End If
+				End If
+			Else
+				Msgbox "Could not remove observation " & sel & "."
+			End If 'isnull x (x=arraygetindex etc)
+		End Forall
+		If doc.ParentDatabase.CurrentAccessLevel > 4 Then
+			'check sizes after the add
+			If Not CheckSizes( vToCode, vToDescription, vToCriticalSet, vToObservations, vToCorrectiveActions, vToCorrected, vToRepeat, vToSection _
+			, vToRoom, UseRoom, vToHazard, UseHazRat,  vToLegalTxt, UseLglTxt, True ) Then
+				Msgbox "(ps That was target variables, " & strToDirection & " after adding)"
+			End If
+			If Not CheckSizes( vFromCode, vFromDescription, vFromCriticalSet, vFromObservations, vFromCorrectiveActions, vFromCorrected, vFromRepeat, vFromSection _
+			, vFromRoom, UseRoom, vFromHazard, UseHazRat,  vFromLegalTxt, UseLglTxt, True ) Then
+				Msgbox "(ps That was source variables, " & strFromDirection & " after removing)"
+			End If	
+		End If 'developer
+		
+		doc.ReplaceItemValue "Viol" & strToDirection & "Code", vToCode 
+		doc.ReplaceItemValue "Viol" & strToDirection & "Description", vToDescription
+		doc.ReplaceItemValue "Viol" & strToDirection & "Observations", vToObservations
+		doc.ReplaceItemValue "Viol" & strToDirection & "CorrectiveActions", vToCorrectiveActions
+		doc.ReplaceItemValue "Viol" & strToDirection & "CriticalSet", vToCriticalSet
+		doc.ReplaceItemValue "Viol" & strToDirection & "Repeat", vToRepeat
+		doc.ReplaceItemValue "Viol" & strToDirection & "CorrectedSet", vToCorrected
+		doc.ReplaceItemValue "Viol" & strToDirection & "Section", vToSection
+		doc.ReplaceItemValue "Viol" & strToDirection & "Room", vToRoom
+		doc.ReplaceItemValue "Viol" & strToDirection & "HzrdRating", vToHazard
+		doc.ReplaceItemValue "Viol" & strToDirection & "LegalTxt", vToLegalTxt
+		
+		doc.ReplaceItemValue "Viol" & strFromDirection & "Code", vFromCode 
+		doc.ReplaceItemValue "Viol" & strFromDirection & "Description", vFromDescription
+		doc.ReplaceItemValue "Viol" & strFromDirection & "Observations", vFromObservations
+		doc.ReplaceItemValue "Viol" & strFromDirection & "CorrectiveActions", vFromCorrectiveActions
+		doc.ReplaceItemValue "Viol" & strFromDirection & "CriticalSet", vFromCriticalSet
+		doc.ReplaceItemValue "Viol" & strFromDirection & "Repeat", vFromRepeat
+		doc.ReplaceItemValue "Viol" & strFromDirection & "CorrectedSet", vFromCorrected
+		doc.ReplaceItemValue "Viol" & strFromDirection & "Section", vFromSection
+		doc.ReplaceItemValue "Viol" & strFromDirection & "Room", vFromRoom
+		doc.ReplaceItemValue "Viol" & strFromDirection & "HzrdRating", vFromHazard
+		doc.ReplaceItemValue "Viol" & strFromDirection & "LegalTxt", vFromLegalTxt
+		
+	End If 'isarray sselection
+	
+	Call uidoc.Refresh
+	doc.ReplaceItemValue "TotHazardRating", SumAllHazardRatings(doc)
+	
+	Goto here
+	
+err_summing:
+	On Error Resume Next
+	Resume here
+here:
+	
+End Sub
+
+'++LotusScript Development Environment:2:1:AddViolationDialogSection:9:8
+%REM
+	22-Aug-2012, Brett Parker, AMTS-8V2LSY Change to violation document design for Food module ONLY
+		Line 102, changed param SingleCategory in method PickListCollection (param ViewName = "ViolationsBySection")
+		 from {UIDoc.Document.SectionType(0) & "&" & sSection} to {UIDoc.Document.SectionType(0) & "&" &
+		 sJurisdiction & "&" & sSection}
+		Line 106, changed param SingleCategory in method PickListCollection (param ViewName = "ViolationsBySection")
+		 from {sModule & "&" & sSection} to {sModule & "&" & sJurisdiction & "&" & sSection}
+%ENDREM
+Function AddViolationDialogSection( ViolationsDB As NotesDatabase, HealthSpace As NotesDatabase, UiDoc As NotesUIDocument, InspView As NotesView ) As Variant
+	
+	Dim session As New NotesSession
+	Dim workspace As New NotesUIWorkspace
+	Dim CodeDocs As NotesDocumentCollection
+	Dim CodeDoc As NotesDocument
+	Dim sModule As String
+	Dim sSection As String
+	Dim sJurisdiction As String
+	Dim bDone As Variant
+	Dim bErr_ExistsShown As Variant
+	Dim Facility As NotesDocument
+	Dim docParent As NotesDocument
+	Dim sViewName As String
+	Dim viewcheck As NotesView
+	
+	On Error Goto complain
+	bDone = False
+	'Initialization
+	bErr_ExistsShown = False
+	
+	'Validate connection to Violations Database
+	If HealthSpace Is Nothing Then
+		Msgbox strErr_ViolationDBOpen, 48, "Add Violation Error"
+		AddViolationDialogSection = True
+		Exit Function
+	End If
+	If Not HealthSpace.IsOpen Then
+		Msgbox strErr_ViolationDBOpen, 48, "Add Violation Error"
+		AddViolationDialogSection = True
+		Exit Function
+	End If
+	
+%REM	
+	'Determine correct module
+	If UiDoc.Document.HasItem( "SectionType" ) Then
+		sModule = UiDoc.Document.SectionType(0)
+	Else
+		sModule = Trim( UIDoc.Document.ViolationModule(0) )
+	End If
+%END REM
+	
+	'Determine correct module
+	If UIDoc.Document.ViolationSubModule(0) <> "" Then		
+		If UIDoc.Document.ViolationSubModule(0) = "Waterslide" Then
+			sModule = Trim( UIDoc.Document.ViolationModule(0) )
+		Else
+			sModule = Trim( UIDoc.Document.ViolationSubModule(0) )
+		End If
+	Else
+		sModule = Trim( UIDoc.Document.ViolationModule(0) )
+	End If
+	
+	sSection = UiDoc.Document.ViolationSection(0)
+	
+	sJurisdiction = GetJurisdiction( HealthSpace, UIDoc.Document )
+%REM
+	sViewName = "Violations" & sModule & sJurisdiction
+	
+	'Added on task NFRY-8FUPFM
+	If DBDesign = "WA" Then
+		If UIDoc.Document.Form(0) = "SolidWasteReport" Then
+			sViewName = "ViolationsSolid WasteState"
+		End If
+	End If
+	
+	Set viewcheck = ViolationsDB.GetView( sViewName )
+	If viewcheck Is Nothing Then
+		Msgbox "The violations database does not contain a view for looking up the violation type " & sModule & sJurisdiction & ".  Please contact Healthspace.", 48, "Program error"
+		bDone = True
+		AddViolationDialogSection = bDone
+		Exit Function
+	End If
+	
+	'and now that we have the view, does it have anything in it??!??!
+	If viewcheck.AllEntries.Count = 0 Then
+		Msgbox "The violations database does not contain any violations of type " & sModule & sJurisdiction & ".  Please contact Healthspace.", 48, "Configuration error"
+		bDone = True
+		AddViolationDialogSection = bDone
+		Exit Function
+	End If
+%END REM
+	
+	'Prompt user for violations to add
+	If Not CheckAllViolationSizes(UIDoc.Document, 15000 ) Then 'hmmm, why are we checking 15K and 12K here, but 25K and 20K  later?
+		Messagebox strErr_ViolationLimit, 48, "Warning"
+		bDone = True
+	Else
+		If Not CheckAllViolationSizes(UIDoc.Document, 12000 ) Then
+			Messagebox strErr_ViolationSize, 48, "Warning"
+		End If
+		
+		If sSection <> "" Then
+			If sModule = "HotelReport" Then ' jbc 18Feb2010 why not use sModule = UIDoc.Document.SectionType(0)
+				Set CodeDocs = Workspace.PickListCollection( PICKLIST_CUSTOM, True, ViolationsDB.Server, _
+				ViolationsDB.FilePath, "ViolationsBySection", "New Violation - " & sModule & ", #" & sSection, _
+				"Select the new violation codes for section " & sSection & ".", UIDoc.Document.SectionType(0) & "&" & sJurisdiction & "&" & sSection)
+			Else
+				Set CodeDocs = Workspace.PickListCollection( PICKLIST_CUSTOM, True, ViolationsDB.Server, _
+				ViolationsDB.FilePath, "ViolationsBySection", "New Violation - " & sModule & ", #" & sSection, _
+				"Select the new violation codes for section " & sSection & ".",  sModule & "&" & sJurisdiction & "&" & sSection)
+			End If
+		Else
+			Set CodeDocs = Workspace.PickListCollection( PICKLIST_CUSTOM, True, ViolationsDB.Server, ViolationsDB.FilePath,_
+			"ViolationsByModuleJurisdiction", "New Violation - " & sModule, "Select the new violation codes for this inspection.", sModule & " & " & sJurisdiction )
+		End If
+		
+		If Not CodeDocs Is Nothing Then
+			If CodeDocs.Count > 0 Then
+				Set CodeDoc = CodeDocs.GetFirstDocument
+				bDone = False
+				While (Not CodeDoc Is Nothing) And (Not bDone)
+					
+				'Check for instances of this code already on this inspection
+'					If Tools_CodeExists(CodeDoc.Code(0),UIDoc.Document) Then
+'						If Not bErr_ExistsShown Then
+'							Msgbox strErr_ViolationExist, 48, "Add Violation Warning"
+'							bErr_ExistsShown = True
+'						End If
+'					Else
+					Call AddViolation(CodeDoc, HealthSpace, bDone, UIDoc.Document, InspView)
+					If Not CheckAllViolationSizes( UIDoc.Document, 25000 ) Then  'hmmm, why are we checking 25K and 20K here, but 15K and 12K  earlier?
+						Messagebox strErr_ViolationLimit, 48, "Warning"
+						bDone = True
+					Elseif Not CheckAllViolationSizes( UIDoc.Document, 20000 ) Then
+						Messagebox strErr_ViolationSize, 48, "Warning"
+					End If
+'					End If
+					Set CodeDoc = CodeDocs.GetNextDocument(CodeDoc)
+				Wend
+			Else
+				bDone = True
+			End If
+		End If
+	End If
+	
+	AddViolationDialogSection = bDone
+	
+disease:
+	Exit Function
+	
+complain:
+	Msgbox "there was a problem in AddViolationDialogSection, at line" & Erl & " (" & Error & ")"
+	Resume disease
+	
+End Function
+
+'++LotusScript Development Environment:2:2:MarkAsRepeat:1:8
+Sub MarkAsRepeat(UIDoc As NotesUIDocument )
+	
+	Dim Workspace As New NotesUIWorkspace
+	Dim Doc As NotesDocument
+	
+	Dim varRepeat As Variant
+	Dim strArrChoices() As String
+	Dim strArray() As String
+	Dim strTemp As String
+	Dim varSelection As Variant
+	Dim intSelection As Integer
+	Dim intCount As Integer
+	Dim intArray As Integer
+	
+	Set Doc  = UIDoc.Document
+	varRepeat = Doc.ViolRepeat
+	intArray = 0
+	
+	If Doc.ViolCode(0) <> "" Then
+		For intCount = 0 To Ubound(Doc.ViolCode)
+			Redim Preserve strArray(intCount)
+			strTemp = Doc.ViolCode(intCount)
+			strTemp = strTemp & " - " & Left(Doc.ViolObservations(intCount),200)
+			strTemp = ReplaceSubString(strTemp, Chr(10), " ")
+			strTemp = ReplaceSubString(strTemp, Chr(13), " ")
+			strTemp = ReplaceSubString(strTemp, ";", ":")
+			strArray(intCount) = strTemp
+			
+			'Build a selection list of violations that are not marked repeat
+			If Doc.ViolRepeat(intCount) <> "Repeat" Then 
+				Redim Preserve strArrChoices(intArray)
+				strArrChoices(intArray) = strTemp
+				intArray = intArray + 1
+			End If
+		Next
+		
+		varSelection = Workspace.Prompt( PROMPT_OKCANCELLISTMULT, "Observation(s)", "Select the Observation(s) you want to mark as a repeat.", "", strArrChoices)
+		
+		If intArray >0 Then
+			For intCount = 0 To  Ubound(Doc.ViolCode)
+				If strArray(intCount) = varSelection(0) Then
+					varRepeat(intCount) = "Repeat"
+				Else
+					varRepeat(intCount) = Doc.ViolRepeat(intCount)
+				End If
+			Next
+			Call Doc.ReplaceItemValue("ViolRepeat",varRepeat)
+			UIDoc.Refresh
+		Else
+			Messagebox "All of the violations on this inspection are marked as repeat.", 48, "Mark as Repeat"
+		End If
+	Else
+		Messagebox "There are no violations on this inspection.", 48, "Mark as Repeat"
+	End If
+	
+End Sub
+
+'++LotusScript Development Environment:2:1:CheckUseRoom:1:8
+Private Function CheckUseRoom( insp As NotesDocument ) As Boolean
+	'this line was in so many places, i thought if we ever need to change it, it would be nice if it was only in one place
+	CheckUseRoom = insp.Form(0) = "HotelReport" Or (insp.Form(0) = "PoolReport" And insp.ViolationSubModule(0) = "Waterslide")_
+	Or insp.Form(0) = "HousingReport" Or insp.Form(0) = "RadiationReport"
+	
+End Function
+
+'++LotusScript Development Environment:2:2:BuildDisplayFieldSection:1:8
+Sub BuildDisplayFieldSection(Doc As NotesDocument)
+	
+	Const PADDING = "      "
+	
+	Dim SectionNumber As Variant
+	Dim SectionGroup As Variant
+	Dim SectionCategory As Variant
+	Dim SectionStatus As Variant
+	Dim SectionDescription As Variant
+	
+	Dim SectionDescriptionOut List As String
+	
+	Dim sNumber As NotesItem
+	Dim sGroup As NotesItem
+	Dim sCategory As NotesItem
+	Dim sDescription As NotesItem
+	Dim sStatus As NotesItem
+	
+	Dim i As Integer
+	Dim iCount As Integer
+	Dim OutString() As String
+	Dim strTarget As String
+	Dim dx As Integer
+	
+	On Error Goto wtf
+	
+	iCount = 0
+	Redim OutString(0) As String
+	
+	Set sNumber = Doc.getFirstItem("SectionNumber")
+	Set sGroup = Doc.GetFirstItem("SectionGroup")
+	Set sCategory = Doc.GetFirstItem("SectionCategory")
+	Set sDescription = Doc.GetFirstItem("SectionDescription")
+	Set sStatus = Doc.GetFirstItem("SectionStatus")
+	
+	SectionNumber = sNumber.Values
+	SectionGroup = sGroup.Values
+	SectionCategory = sCategory.Values
+	SectionStatus = sStatus.Values
+	SectionDescription = sDescription.Values
+	
+	If SectionNumber(0) = "" Then
+		Redim OutString(0)
+		OutString(0) = "No Sections entered."
+	Else
+		If Ubound(SectionNumber) <> Ubound(SectionGroup) _
+		Or Ubound(SectionNumber) <> Ubound(SectionCategory) _
+		Or Ubound(SectionNumber) <> Ubound(SectionDescription) _
+		Or Ubound(SectionNumber) <> Ubound(SectionStatus) Then
+			Redim Preserve OutString(iCount) As String
+			OutString(iCount) = "Caution! Section array sizes are mismatched."
+			iCount = iCount + 1
+			'Normalize array sizes to prevent run-time errors. Yes, data loss can happen here
+			If Ubound(SectionNumber) > Ubound(SectionGroup) Then
+				Redim Preserve SectionGroup(Ubound(SectionNumber))
+			End If
+			If Ubound(SectionNumber) > Ubound(SectionCategory) Then
+				Redim Preserve SectionCategory(Ubound(SectionNumber))
+			End If
+			If Ubound(SectionNumber) > Ubound(SectionDescription) Then
+				Redim Preserve SectionDescription(Ubound(SectionNumber))
+			End If
+			If Ubound(SectionNumber) > Ubound(SectionStatus) Then
+				Redim Preserve SectionStatus(Ubound(SectionNumber))
+			End If
+		End If
+		
+		'Generate Result
+		For i = Lbound(SectionNumber) To Ubound(SectionNumber)
+			SectionDescriptionOut(SectionNumber(i)) = sDescription.Values(i) & " - " & sStatus.Values(i)
+		Next
+		
+		Forall desc In SectionDescriptionOut
+			'Build primary description
+			Redim Preserve OutString(iCount) As String
+			If iCount <> 0 Then
+				'Space
+				OutString(iCount) = " "
+				iCount = iCount + 1
+				Redim Preserve OutString(iCount) As String
+			End If			
+			OutString(iCount) = "Section " & Listtag(desc) & " - " & SectionDescriptionOut(Listtag(desc))
+			iCount = iCount + 1			
+		End Forall
+	End If
+	
+	Call Doc.ReplaceItemValue("SectionDisplay",OutString)	
+	
+ciao:
+	Exit Sub
+	
+wtf:
+	Msgbox "Error " & Err & " in BuildDisplayFieldSection(), at line" & Erl & " (" & Error & ")"
+	Resume ciao
+	
+End Sub

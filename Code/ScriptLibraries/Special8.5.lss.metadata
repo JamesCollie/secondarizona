@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?><note class="filter" maintenanceversion="1.0" replicaid="88257B650066CF74" version="9.0" xmlns="http://www.lotus.com/dxl">
+<noteinfo noteid="156" sequence="6" unid="2B57267C29CD4806852576E1006BDE5A">
+<created><datetime>20100309T143812,74-05</datetime></created>
+<modified><datetime dst="true">20130508T114258,11-07</datetime></modified>
+<revised><datetime dst="true">20130418T063016,80-07</datetime></revised>
+<lastaccessed><datetime dst="true">20130508T114258,11-07</datetime></lastaccessed>
+<addedtofile><datetime dst="true">20130508T114258,11-07</datetime></addedtofile></noteinfo>
+<updatedby><name>CN=James Collie/OU=Office/O=HealthSpace</name><name>CN=HS Agent/OU=Service/O=HealthSpace</name></updatedby>
+<wassignedby><name>CN=Owl/O=HealthSpace</name></wassignedby>
+<item name="$TITLE" sign="true"><text>Special8.5</text></item>
+<item name="$Flags"><text>s34Q</text></item>
+<item name="$PublicAccess" sign="true"><text>1</text></item>
+
+
+<item name="$POID"><datetime dst="true">20130418T063016,80-07</datetime></item></note>

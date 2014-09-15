@@ -1,0 +1,82 @@
+<?xml version='1.0' encoding='utf-8'?>
+<note class='form' xmlns='http://www.lotus.com/dxl' version='9.0' maintenanceversion='1.0'
+ replicaid='88257B650066CF74'>
+<noteinfo noteid='426' unid='041424A94093EF84882575A70065E0DF' sequence='19'>
+<created><datetime dst='true'>20090429T113247,03-07</datetime></created>
+<modified><datetime dst='true'>20130508T114300,43-07</datetime></modified>
+<revised><datetime>20091104T084210,17-08</datetime></revised>
+<lastaccessed><datetime dst='true'>20130508T114300,43-07</datetime></lastaccessed>
+<addedtofile><datetime dst='true'>20130508T114300,43-07</datetime></addedtofile></noteinfo>
+<updatedby><name>CN=Steve Young/OU=Office/O=HealthSpace</name></updatedby>
+<wassignedby><name>CN=Steve Young/OU=Office/O=HealthSpace</name></wassignedby>
+<item name='RenewalDate' summary='false'>
+<rawitemdata type='400'>
+AAAAAAAAAAA=
+</rawitemdata></item>
+<item name='$HTMLCode' sign='true'>
+<rawitemdata type='1'>
+X/8QAAIADwAHAAAAAAAAAA==
+</rawitemdata></item>
+<item name='$TITLE'><textlist><text>Certificate\Renewal Report</text><text
+>RenewalReport</text></textlist></item>
+<item name='$Info' sign='true'>
+<rawitemdata type='1'>
+hhgBAIAAAAAAgAAAAQABAP///wAQAAAA
+</rawitemdata></item>
+<item name='$WindowTitle' sign='true'><formula>"Renewal Report"</formula></item>
+<item name='$Flags'><text/></item>
+<item name='$DesignerVersion'><text>8</text></item>
+<item name='$Fonts'>
+<rawitemdata type='1'>
+i/8oAAEABSZBcmlhbAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==
+</rawitemdata></item>
+<item name='$$ScriptName' summary='false' sign='true'><text>RenewalReport</text></item>
+<item name='Date' summary='false'>
+<rawitemdata type='400'>
+AAAAAAAAAAA=
+</rawitemdata></item>
+<item name='Details' placeholder='true'>
+<rawitemdata type='0'>
+</rawitemdata></item>
+<item name='ErrorDetails' placeholder='true'>
+<rawitemdata type='0'>
+</rawitemdata></item>
+<item name='$Fields'><textlist><text>ErrorDetails</text><text>Details</text><text
+>Date</text></textlist></item>
+<item name='$Body' sign='true'>
+<rawitemdata type='1'>
+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
+</rawitemdata></item>
+<item name='$CIAOOwner'><text>CN=Steve Young/OU=Office/O=HealthSpace</text></item>
+<item name='$CIAOTime'><datetime>20091104T084210,17-08</datetime></item>
+<item name='$CIAOCheckOutTime'><datetime>20100205T142848,71-08</datetime></item>
+<item name='$CIAOCheckOutComment'><text>LCOE-82BT8P Manger Certification Not Printing correctly</text></item></note>
+

@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='utf-8'?>
+<note class='filter' xmlns='http://www.lotus.com/dxl' version='9.0' maintenanceversion='1.0'
+ replicaid='88257B650066CF74'>
+<noteinfo noteid='1f6' unid='BD67E3029DC7E8C08825764000577AF1' sequence='3'>
+<created><datetime dst='true'>20090929T085531,05-07</datetime></created>
+<modified><datetime dst='true'>20130508T114258,73-07</datetime></modified>
+<revised><datetime dst='true'>20130418T063015,91-07</datetime></revised>
+<lastaccessed><datetime dst='true'>20130508T114258,73-07</datetime></lastaccessed>
+<addedtofile><datetime dst='true'>20130508T114258,73-07</datetime></addedtofile></noteinfo>
+<updatedby><name>CN=Mike Vogt/OU=Office/O=HealthSpace</name><name>CN=HS Agent/OU=Service/O=HealthSpace</name></updatedby>
+<wassignedby><name>CN=Owl/O=HealthSpace</name></wassignedby>
+<item name='$SiteMapList' sign='true'>
+<rawitemdata type='1a'>
+AQYBAAEAAgBIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAACAEgAQwABDAIAZAAAAAAAAAAOAAAALgAAAAAAAAAHAAAAAAAAAAAA
+AwACAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFUHJpbnQgRm9ybXMAAQD2/ywAAAAA
+AAMAAgAKAAAAAAAAAAAAAAAAAAAAAAAAAAAAUHJpbnRGb3JtcwAFVmlldwBIAE0AAQwCAGUAAAAA
+AAAAFAAAADIAAAAAAAAABwAAAAAAAAAAAAMAAgAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAABVByaW50IFN5c3RlbSBUYWdzAAEA9v8vAAAAAAADAAIADQAAAAAAAAAAAAAAAAAAAAAAAAAA
+AFN5c3RlbVRhZ3NSZWY/AAVWaWV3AA==
+</rawitemdata></item>
+<item name='$TITLE'><text>Printing</text></item>
+<item name='$Flags'><text>m</text></item>
+<item name='$DesignerVersion'><text>8</text></item>
+<item name='$POID'><datetime dst='true'>20130418T063015,91-07</datetime></item></note>
+

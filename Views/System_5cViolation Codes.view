@@ -1,0 +1,70 @@
+<?xml version='1.0' encoding='utf-8'?>
+<note class='view' xmlns='http://www.lotus.com/dxl' version='9.0' maintenanceversion='1.0'
+ replicaid='88257B650066CF74'>
+<noteinfo noteid='64a' unid='007035A3043876A788257A830064E135' sequence='6'>
+<created><datetime dst='true'>20120924T112152,53-07</datetime></created>
+<modified><datetime dst='true'>20130508T114303,07-07</datetime></modified>
+<revised><datetime dst='true'>20130418T063017,46-07</datetime></revised>
+<lastaccessed><datetime dst='true'>20130508T114752,29-07</datetime></lastaccessed>
+<addedtofile><datetime dst='true'>20130508T114303,07-07</datetime></addedtofile></noteinfo>
+<updatedby><name>CN=Wol/O=HealthSpace</name><name>CN=HS Agent/OU=Service/O=HealthSpace</name></updatedby>
+<wassignedby><name>CN=Owl/O=HealthSpace</name></wassignedby>
+<item name='$FormatNote' summary='true'>
+<rawitemdata type='4'>
+AQA2b8SWbT8gZhq/CADHaCWI
+</rawitemdata></item>
+<item name='$FormulaClass' sign='true'><text>1</text></item>
+<item name='$V5ACTIONS' sign='true'>
+<rawitemdata type='1'>
+vRwAAAAAAQABAAAACAAAAAAAAAABAAAJAAAAAHn/bAAJAAAAAAABAAAAAAABAAAAAAAJAAAAAAAD
+AB8AAAAAAAAAAAADAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAPz/OgAAAAAAAAAAAAAAAQAAAAAAAAAAAAwAAAAAAAAAAAAA
+AAAAAAAAAAEAAAAAAAAAAAAAAAAAAAC+/yYAAAAFAAAAnQEAAAsAAAAAAAAAQ2F0ZWdvcmlfemUA
+AQBOfL7/KAAAAAUAAACdAQAADgAAAAAAAABfRWRpdCBEb2N1bWVudAIAAgq+/ygAAAAFAAAAnQEA
+AA4AAAAAAAAAU2VuZCBEb2N1X21lbnQDAAMKvv8iAAAABQAAAJ0BAAAIAAAAAAAAAF9Gb3J3YXJk
+BAAECr7/LAAAAAUAAACdAQAAEgAAAAAAAABfTW92ZSBUbyBGb2xkZXIuLi4FAD18vv8uAAAABQAA
+AJ0BAAATAAAAAAAAAF9SZW1vdmUgRnJvbSBGb2xkZXIABgA+fL7/WAAAAAEAAACeARAAEgAAAAAA
+AABBZGQgVmlvbGF0aW9uIENvZGUwAAAAJAACAOgDAAAAAAAAAQANAFZpb2xhdGlvbkNvZGUA7QID
+AAcACgADAAk0UwD2/y4AAAAAAAMAEwAMAAAAAAAAAAAAAAAAAAAAAAAAAAAAQnV0dG9uIC0gTmV3
+</rawitemdata></item>
+<item name='$TITLE' sign='true'><text>System\Violation Codes|ViolationCodes</text></item>
+<item name='$Index' sign='true'><text/></item>
+<item name='$Formula' summary='true' sign='true'><formula compiled='true'>
+7AAFAGgAYwAJAAYACAAPAAQACAAMAAsACQAEAE1vZHVsZUNhdGVnb3J5Vmlld0Rlc2NyaXB0aW9u
+Q29kZUNyaXRpY2FsSnVyaXNkaWN0aW9uRGVzY3JpcHRpb24kQ29uZmxpY3QkUkVGAAQABAAAAF4A
+BQAEAEZvcm0BAA0AVmlvbGF0aW9uQ29kZQAKAgUABABGb3JtAQAUAFZpb2xhdGlvbk9ic2VydmF0
+aW9uCgJsABwCBAAdAgUABwBEZWxldGVkAF0BHgEcAgMABwAgABkACUwxUzRTNVM5UzEwUzEyUzEz
+UzE2UzE3UwA=
+</formula></item>
+<item name='$Collation' summary='true'>
+<rawitemdata type='2'>
+QwAEAABECGYHAAAGAAhmBwYACACIZgAOAA8AAGYAHQAEAE1vZHVsZUNhdGVnb3J5Vmlld0Rlc2Ny
+aXB0aW9uQ29kZQ==
+</rawitemdata></item>
+<item name='$ViewFormat' summary='true' sign='true'>
+<rawitemdata type='5'>
+AQAHAAAAiUgAAFZDgwQGAAAAAAAAAAgABQEACQABAAAAAAAAAAICAAAAVkODBAgAAAAAAAAACAAF
+AQAJAAEAAAAAAAAAAgIAAABWQ5EADwAAAAAAAAAIAAUAAAkAAQAAAAAAAAACAgAAAFZDAQQEAAQA
+AAAAAKAABQAACQAAAAAAAAAAAAICAAAAVkMAAAgACAAAAAAAQAAFAAAJAAAAAAAAAAAAAgIAAABW
+QwAADAAMAAAAAABgAAUAAAkAAAAAAAAAAAACAgAAAFZDAAALAAsAAAAAACwBBQAACQAAAAAAAAAA
+AAICAAAATW9kdWxlQ2F0ZWdvcnlWaWV3RGVzY3JpcHRpb25Db2RlQ29kZUNyaXRpY2FsQ3JpdGlj
+YWxKdXJpc2RpY3Rpb25KdXJpc2RpY3Rpb25EZXNjcmlwdGlvbkRlc2NyaXB0aW9uJgABAAAAAQEA
+CQEAAgoBAQ4KAAAYAK0rAgABAAEAAAAAAAAAAABXQwEBAAkAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+AAD//wAAAAAAAAAAAAAAAAAAV0MBAQAJAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//8AAAAAAAAA
+AAAAAAAAAFdDAQEACQAAAAAAAAAAAAAAAAAAAAAAAAQAAAAAAP//AAAAAAAAAAAAAAAAAABXQwEB
+AAkAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD//wAAAAAAAAAAAAAAAAAAV0MBAQAJAAAAAAAAAAAA
+AAAAAAAAAAAABAAAAAAA//8AAAAAAAAAAAAAAAAAAFdDAQEACQAAAAAAAAAAAAAAAAAAAAAAAAQA
+AAAAAP//AAAAAAAAAAAAAAAAAABXQwEBAAkAAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAD//wAAAAAA
+AAAAAAAAAAAAQgAQAAAAAQD///8AAQDg8f8AAQAAAAAAAAAAAAAAAAABAP///wABAP///wAAAAEA
+/wAAAAEAgICAAAEAAAAAAAAACAAAAAAAAQA=
+</rawitemdata></item>
+<item name='$Comment' sign='true'><text> DXL 19Oct2012 NFRY-8YFPGL</text></item>
+<item name='$DesignerVersion'><text>8.5.3</text></item>
+<item name='TmpViewDesignCollation'><text>en</text></item>
+<item name='$Flags'><text>Y</text></item>
+<item name='$WebFlags'><text>B</text></item>
+<item name='$Fonts' sign='true'><textlist><text>5</text><text>38</text><text
+>Arial</text></textlist></item>
+<item name='DXLREFRESH'><text>19Oct2012 00:20 NFRY-8YFPGL old date unknown for VIEW ViolationCodes</text></item>
+<item name='DXLRECOMPILE'><text>19Oct2012 00:25 NFRY-8YFPGL import date 19Oct2012 00:25</text></item></note>
+
